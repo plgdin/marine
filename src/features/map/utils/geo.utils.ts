@@ -9,13 +9,14 @@ export interface VesselGeoJsonProperties {
   vesselType: string;    // 'cargo' | 'tanker' | 'bulk_carrier' | 'passenger' | etc.
   status: string;
   speed: number;
-  heading: number;
+  heading: number;       // True heading (direction bow is pointing)
+  course: number;        // Course over ground (direction of movement)
   timestamp: string;
 }
 
 /**
  * Converts a Map of VesselPositions into a flat GeoJSON FeatureCollection.
- * Mapbox GL JS relies on GeoJSON for high-performance data sourcing.
+ * MapLibre GL JS relies on GeoJSON for high-performance data sourcing.
  * 
  * Enriched with AISStream vessel metadata (ship names, vessel types).
  */
@@ -28,10 +29,12 @@ export function positionsToGeoJson(
     // Enrich with AIS metadata if available
     const metadata = getVesselMetadata(pos.vesselId);
     const shipName = metadata?.name || pos.vesselId;
+    
     const vesselType = metadata?.vesselType || mapAISShipType(metadata?.shipType ?? 0, shipName);
 
     features.push({
       type: 'Feature',
+      id: pos.vesselId,
       geometry: {
         type: 'Point',
         coordinates: [pos.location.lng, pos.location.lat],
@@ -43,7 +46,8 @@ export function positionsToGeoJson(
         vesselType,
         status: pos.navStatus,
         speed: pos.speed ?? 0,
-        heading: pos.heading ?? 0,
+        heading: pos.heading ?? pos.course ?? 0,
+        course: pos.course ?? pos.heading ?? 0,
         timestamp: pos.timestamp,
       },
     });

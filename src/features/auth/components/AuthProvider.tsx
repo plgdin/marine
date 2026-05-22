@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { useAuthStore }               from '@features/auth/stores/auth.store';
 import { logger }                     from '@shared/utils/logger';
 import type { AuthSession, UserProfile } from '@shared/types/domain.types';
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         // 2. Listen for auth changes (login, logout, token refresh)
-        supabase.auth.onAuthStateChange((_event: any, newSession: any) => {
+        supabase.auth.onAuthStateChange((_event: AuthChangeEvent, newSession: Session | null) => {
           if (newSession) {
             setSession(mapSupabaseSession(newSession));
           } else {
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
  * Maps a raw Supabase user + session to our internal AuthSession type.
  * TODO: call this from the real auth flow above.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function mapSupabaseSession(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   session: any,

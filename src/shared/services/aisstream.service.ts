@@ -81,7 +81,7 @@ const AIS_NAV_STATUS_MAP: Record<number, string> = {
  */
 export function mapAISShipType(typeCode: number, shipName?: string): string {
   // Check ship name for bulk carrier indicators
-  const nameUpper = (shipName || '').toUpperCase();
+  const nameUpper = String(shipName || '').toUpperCase();
   if (
     nameUpper.includes('BULK') ||
     nameUpper.includes('BULKER') ||
@@ -244,9 +244,10 @@ class AISStreamService {
     const report = data.Message.PositionReport!;
     const meta = data.MetaData;
 
-    // Use MetaData lat/lng as primary (always available), fallback to report
-    const lat = meta.latitude ?? report.Latitude;
-    const lng = meta.longitude ?? report.Longitude;
+    // We must use the report's Latitude/Longitude.
+    // MetaData.latitude/longitude is the position of the RECEIVER ANTENNA, not the ship!
+    const lat = report.Latitude;
+    const lng = report.Longitude;
 
     // Skip invalid coordinates
     if (lat === 0 && lng === 0) return;

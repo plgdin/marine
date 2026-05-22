@@ -5,9 +5,7 @@ import { VesselLayer } from './layers/VesselLayer';
 import { VesselPopup } from './VesselPopup';
 import { useCallback } from 'react';
 import type { MapMouseEvent } from 'maplibre-gl';
-
-// Free dark tile style from CARTO (OpenStreetMap-based)
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+import MAP_STYLE from '../styles/map-style';
 
 export function MapContainer() {
   const viewport = useMapStore((s) => s.viewport);
@@ -15,6 +13,7 @@ export function MapContainer() {
   const setSelectedVessel = useMapStore((s) => s.setSelectedVessel);
 
   const onMouseMove = useCallback((event: MapMouseEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const features = (event as any).features;
     const feature = features?.[0];
     
@@ -30,6 +29,7 @@ export function MapContainer() {
     }
   }, [setSelectedVessel]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onLoad = useCallback((e: any) => {
     const map = e.target;
     // Generate an arrow image for the vessels using a canvas
@@ -40,14 +40,15 @@ export function MapContainer() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // Draw an arrow pointing UP (0 degrees)
+    // Draw a sharp directional arrow pointing UP (0 degrees = North)
+    // The 'icon-rotate' property in the layer will rotate it to match course
     ctx.beginPath();
-    ctx.moveTo(size / 2, 0); // Tip
-    ctx.lineTo(size, size); // Bottom right
-    ctx.lineTo(size / 2, size * 0.75); // Inner bottom indent
-    ctx.lineTo(0, size); // Bottom left
+    ctx.moveTo(size / 2, 2);              // Tip (top center)
+    ctx.lineTo(size * 0.82, size * 0.85); // Bottom right
+    ctx.lineTo(size / 2, size * 0.65);    // Inner V notch
+    ctx.lineTo(size * 0.18, size * 0.85); // Bottom left
     ctx.closePath();
-    ctx.fillStyle = 'black'; // Color doesn't matter for SDF, alpha does
+    ctx.fillStyle = '#000000'; // Color doesn't matter for SDF — only alpha channel
     ctx.fill();
 
     const imageData = ctx.getImageData(0, 0, size, size);
@@ -59,14 +60,16 @@ export function MapContainer() {
   }, []);
 
   return (
-    <div className="w-full h-full relative bg-marine-950">
+    <div className="w-full h-full relative" style={{ backgroundColor: '#FFFFFF' }}>
       <Map
         id="main-map"
         initialViewState={viewport}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onMove={(evt: any) => setViewport(evt.viewState)}
         mapStyle={MAP_STYLE}
         interactiveLayerIds={['vessels-unclustered']}
         onLoad={onLoad}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onMouseMove={onMouseMove as any}
         onMouseLeave={() => {
           document.body.style.cursor = '';

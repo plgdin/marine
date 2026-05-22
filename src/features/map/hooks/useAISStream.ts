@@ -27,7 +27,7 @@ export function useAISStream(options?: {
     vesselCount: 0,
   });
 
-  const updateStats = useCallback((_messageCount: number) => {
+  const updateStats = useCallback(() => {
     const fullStats = aisStreamService.getStats();
     setStats({
       isConnected: fullStats.isConnected,
@@ -72,6 +72,7 @@ export function useAISStream(options?: {
       aisStreamService.disconnect();
       connectedRef.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, updateStats]); // intentionally omit boundingBoxes to avoid reconnect on every change
 
   // Handle bounding box updates separately (without full reconnect)

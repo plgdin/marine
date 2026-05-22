@@ -11,66 +11,26 @@ const heatmapLayer: LayerProps = {
   source: 'vessels',
   maxzoom: 9,
   paint: {
-    'heatmap-weight': 1, // Can scale by density or speed
+    'heatmap-weight': 1,
     'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 9, 3],
     'heatmap-color': [
       'interpolate',
       ['linear'],
       ['heatmap-density'],
-      0, 'rgba(2, 12, 20, 0)',
-      0.2, '#0f52a0',
-      0.4, '#1a6fcf',
-      0.6, '#00e5ff',
-      0.8, '#ffab00',
-      1, '#ff1744',
+      0, 'rgba(255, 255, 255, 0)',
+      0.2, '#1565C0',
+      0.4, '#1E88E5',
+      0.6, '#FF6F00',
+      0.8, '#FF3D00',
+      1, '#D50000',
     ],
     'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 2, 9, 20],
     'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 7, 1, 9, 0],
   },
 };
 
-// 2. Clusters (grouping dense vessels)
-const clusterLayer: LayerProps = {
-  id: 'vessels-clusters',
-  type: 'circle',
-  source: 'vessels',
-  filter: ['has', 'point_count'],
-  paint: {
-    'circle-color': [
-      'step',
-      ['get', 'point_count'],
-      '#1a6fcf', // default
-      100, '#00e5ff', // 100+
-      750, '#ffab00', // 750+
-    ],
-    'circle-radius': [
-      'step',
-      ['get', 'point_count'],
-      15, // default size
-      100, 20, // 100+
-      750, 25, // 750+
-    ],
-    'circle-opacity': 0.8,
-    'circle-stroke-width': 2,
-    'circle-stroke-color': 'rgba(255, 255, 255, 0.5)',
-  },
-};
-
-const clusterCountLayer: LayerProps = {
-  id: 'vessels-cluster-count',
-  type: 'symbol',
-  source: 'vessels',
-  filter: ['has', 'point_count'],
-  layout: {
-    'text-field': '{point_count_abbreviated}',
-    'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
-    'text-size': 11,
-  },
-  paint: {
-    'text-color': '#ffffff',
-  },
-};
-
+// 2. Individual vessel arrows
+// Uses 'course' property = direction the vessel is actually MOVING
 const unclusteredLayer: LayerProps = {
   id: 'vessels-unclustered',
   type: 'symbol',
@@ -79,33 +39,43 @@ const unclusteredLayer: LayerProps = {
     'icon-image': 'vessel-arrow',
     'icon-size': [
       'interpolate', ['linear'], ['zoom'],
-      3, 0.15,
-      10, 0.3,
-      15, 0.5,
+      2, 0.35,
+      6, 0.45,
+      10, 0.55,
+      15, 0.7,
     ],
-    'icon-rotate': ['get', 'heading'],
+    // Use 'course' (direction of movement) as the primary rotation,
+    // fallback to 'heading' if course is 0 (unavailable)
+    'icon-rotate': [
+      'case',
+      ['>', ['get', 'course'], 0], ['get', 'course'],
+      ['get', 'heading'],
+    ],
+    'icon-rotation-alignment': 'map',
     'icon-allow-overlap': true,
     'icon-ignore-placement': true,
-    'icon-pitch-alignment': 'map', // Keeps arrows flat on the map
+    'icon-pitch-alignment': 'map',
   },
   paint: {
     'icon-color': [
       'match',
       ['get', 'vesselType'],
-      'cargo',        '#4caf50',   // Green
-      'tanker',       '#ef5350',   // Light red
-      'bulk_carrier', '#b71c1c',   // Dark red
-      'passenger',    '#42a5f5',   // Blue
-      'fishing',      '#7c4dff',   // Purple
-      'tug',          '#ffab00',   // Amber
-      'hsc',          '#18ffff',   // Cyan
-      '#78909c'                    // Gray default (other/unknown)
+      'cargo',        '#2E7D32',   // Dark green
+      'tanker',       '#C62828',   // Deep red
+      'bulk_carrier', '#BF360C',   // Deep orange-red
+      'passenger',    '#1565C0',   // Dark blue
+      'fishing',      '#6A1B9A',   // Deep purple
+      'tug',          '#E65100',   // Burnt orange
+      'hsc',          '#00838F',   // Teal
+      '#455A64'                    // Blue-gray default
     ],
-    'icon-halo-color': 'rgba(0, 0, 0, 0.7)',
+    'icon-halo-color': '#FFFFFF',
     'icon-halo-width': 1,
+    'icon-opacity': 0.9,
   },
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const EMPTY_GEOJSON: any = { type: 'FeatureCollection', features: [] };
 
 export function VesselLayer() {
@@ -118,16 +88,12 @@ export function VesselLayer() {
     <Source
       id="vessels"
       type="geojson"
-      data={EMPTY_GEOJSON} // Use stable reference to avoid clearing data on re-render
+      data={EMPTY_GEOJSON}
       cluster={false}
+      tolerance={0}
     >
       {showHeatmap && <Layer {...heatmapLayer} />}
-      {showVessels && (
-        <>
-          <Layer {...unclusteredLayer} />
-        </>
-      )}
+      {showVessels && <Layer {...unclusteredLayer} />}
     </Source>
   );
 }
-

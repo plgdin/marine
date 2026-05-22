@@ -25,10 +25,13 @@ class RealtimeService {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'vessel_positions' },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           this.handlePositionUpdate(payload.new as any);
         }
       )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .subscribe((status: string, err: any) => {
         if (status === 'SUBSCRIBED') {
           this.isConnected = true;
@@ -47,6 +50,7 @@ class RealtimeService {
       });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlePositionUpdate(row: any) {
     if (!row || !row.id || !row.vessel_id) return;
 

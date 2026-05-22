@@ -25,7 +25,7 @@ export function useMediaQuery(query: Breakpoint | string): boolean {
     const mql      = window.matchMedia(mediaQuery);
     const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
 
-    setMatches(mql.matches);
+    // remove the initial setMatches as it causes an unnecessary render in effect
     mql.addEventListener('change', onChange);
     return () => mql.removeEventListener('change', onChange);
   }, [mediaQuery]);
@@ -34,6 +34,18 @@ export function useMediaQuery(query: Breakpoint | string): boolean {
 }
 
 /** Convenience hooks for common breakpoints */
-export const useIsMobile  = () => !useMediaQuery('md');
-export const useIsTablet  = () => useMediaQuery('md') && !useMediaQuery('lg');
-export const useIsDesktop = () => useMediaQuery('lg');
+export const useIsMobile  = () => {
+  const isMd = useMediaQuery('md');
+  return !isMd;
+};
+
+export const useIsTablet  = () => {
+  const isMd = useMediaQuery('md');
+  const isLg = useMediaQuery('lg');
+  return isMd && !isLg;
+};
+
+export const useIsDesktop = () => {
+  const isLg = useMediaQuery('lg');
+  return isLg;
+};
