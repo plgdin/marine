@@ -11,7 +11,7 @@ export const MAP_DEFAULTS = {
   zoom:      3,
   minZoom:   1,
   maxZoom:   20,
-  style:     'mapbox://styles/mapbox/dark-v11',
+  style:     'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
 } as const;
 
 export const MAP_ZOOM_THRESHOLDS = {

@@ -1,4 +1,4 @@
-import { Source, Layer, type LayerProps } from 'react-map-gl/mapbox';
+import { Source, Layer, type LayerProps } from 'react-map-gl/maplibre';
 import { useMapStore } from '../../stores/map.store';
 import { useMapSync } from '../../hooks/useMapSync';
 
@@ -63,7 +63,7 @@ const clusterCountLayer: LayerProps = {
   filter: ['has', 'point_count'],
   layout: {
     'text-field': '{point_count_abbreviated}',
-    'text-font': ['Inter Medium', 'Arial Unicode MS Bold'],
+    'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
     'text-size': 11,
   },
   paint: {
@@ -71,27 +71,42 @@ const clusterCountLayer: LayerProps = {
   },
 };
 
-// 3. Unclustered Vessels (individual icons)
 const unclusteredLayer: LayerProps = {
   id: 'vessels-unclustered',
-  type: 'circle', // Using circle temporarily until SVG sprites are loaded
+  type: 'symbol',
   source: 'vessels',
-  filter: ['!', ['has', 'point_count']],
-  paint: {
-    'circle-color': [
-      'match',
-      ['get', 'status'],
-      'underway', '#00e676',
-      'anchored', '#ffab00',
-      'moored', '#40c4ff',
-      'alert', '#ff1744',
-      '#78909c' // default
+  layout: {
+    'icon-image': 'vessel-arrow',
+    'icon-size': [
+      'interpolate', ['linear'], ['zoom'],
+      3, 0.15,
+      10, 0.3,
+      15, 0.5,
     ],
-    'circle-radius': 5,
-    'circle-stroke-width': 1,
-    'circle-stroke-color': '#ffffff',
+    'icon-rotate': ['get', 'heading'],
+    'icon-allow-overlap': true,
+    'icon-ignore-placement': true,
+    'icon-pitch-alignment': 'map', // Keeps arrows flat on the map
+  },
+  paint: {
+    'icon-color': [
+      'match',
+      ['get', 'vesselType'],
+      'cargo',        '#4caf50',   // Green
+      'tanker',       '#ef5350',   // Light red
+      'bulk_carrier', '#b71c1c',   // Dark red
+      'passenger',    '#42a5f5',   // Blue
+      'fishing',      '#7c4dff',   // Purple
+      'tug',          '#ffab00',   // Amber
+      'hsc',          '#18ffff',   // Cyan
+      '#78909c'                    // Gray default (other/unknown)
+    ],
+    'icon-halo-color': 'rgba(0, 0, 0, 0.7)',
+    'icon-halo-width': 1,
   },
 };
+
+const EMPTY_GEOJSON: any = { type: 'FeatureCollection', features: [] };
 
 export function VesselLayer() {
   const { showVessels, showHeatmap } = useMapStore((s) => s.layers);
@@ -103,19 +118,16 @@ export function VesselLayer() {
     <Source
       id="vessels"
       type="geojson"
-      data={{ type: 'FeatureCollection', features: [] }} // Initial empty dataset
-      cluster={true}
-      clusterMaxZoom={10} // Max zoom to cluster points on
-      clusterRadius={50} // Radius of each cluster when clustering points
+      data={EMPTY_GEOJSON} // Use stable reference to avoid clearing data on re-render
+      cluster={false}
     >
       {showHeatmap && <Layer {...heatmapLayer} />}
       {showVessels && (
         <>
-          <Layer {...clusterLayer} />
-          <Layer {...clusterCountLayer} />
           <Layer {...unclusteredLayer} />
         </>
       )}
     </Source>
   );
 }
+
