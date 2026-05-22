@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useAuthStore }               from '@features/auth/stores/auth.store';
 import { logger }                     from '@shared/utils/logger';
 import type { AuthSession, UserProfile } from '@shared/types/domain.types';
+import { supabase }                   from '@config/supabase';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -19,54 +20,55 @@ interface AuthProviderProps {
  * so the routing and guards work correctly end-to-end.
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { setSession, setLoading, setInitialized } = useAuthStore();
+  const { setSession, setLoading, setInitialized, clearSession } = useAuthStore();
 
   useEffect(() => {
-    // ── STUB: Replace with real Supabase auth once keys are configured ──
+    let mounted = true;
+
     const initAuth = async () => {
       try {
         setLoading(true);
 
-        // TODO: Replace this block with:
-        //
-        // const { data: { session } } = await supabaseClient.auth.getSession();
-        // if (session) {
-        //   const profile = await fetchUserProfile(session.user.id);
-        //   setSession(mapSupabaseSession(session, profile));
-        // }
-        //
-        // supabaseClient.auth.onAuthStateChange((_event, session) => {
-        //   if (session) { ... } else { clearSession(); }
-        // });
+        // 1. Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
 
-        // Stub: simulate auth check delay
-        await new Promise((r) => setTimeout(r, 300));
+        if (session && mounted) {
+          // In a real app, you might fetch additional profile data here.
+          setSession(mapSupabaseSession(session));
+          logger.info('AuthProvider: initialized (authenticated)');
+        } else if (mounted) {
+          setSession(null);
+          logger.info('AuthProvider: initialized (unauthenticated)');
+        }
 
-        // Stub: Simulate logged in state for testing the dashboard
-        setSession({
-          user: {
-            id: 'mock-user-123',
-            email: 'admin@marinetrack.app',
-            fullName: 'Admin User',
-            avatarUrl: null,
-            createdAt: new Date().toISOString(),
-          },
-          accessToken: 'mock-jwt-token',
-          orgId: 'mock-org-123',
-          orgRole: 'admin',
+        // 2. Listen for auth changes (login, logout, token refresh)
+        supabase.auth.onAuthStateChange((_event, newSession) => {
+          if (newSession) {
+            setSession(mapSupabaseSession(newSession));
+          } else {
+            clearSession();
+          }
         });
-        logger.info('AuthProvider: initialized (STUB MODE — LOGGED IN)');
+
       } catch (error) {
         logger.error('AuthProvider: initialization failed', error);
-        setSession(null);
+        if (mounted) setSession(null);
       } finally {
-        setLoading(false);
-        setInitialized(true);
+        if (mounted) {
+          setLoading(false);
+          setInitialized(true);
+        }
       }
     };
 
     void initAuth();
-  }, [setSession, setLoading, setInitialized]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [setSession, setLoading, setInitialized, clearSession]);
 
   return <>{children}</>;
 }

@@ -2,108 +2,98 @@ import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { eventBus }         from '@shared/utils/event-bus';
 import { logger }           from '@shared/utils/logger';
 import { REALTIME }         from '@shared/utils/constants';
+import { supabase }         from '@config/supabase';
+import type { VesselPosition } from '@shared/types/domain.types';
 
 /**
  * Realtime Connection Manager.
  * Handles the WebSocket lifecycle to Supabase Realtime.
- * In a real implementation, this would use supabase.channel().
  */
 class RealtimeService {
   private isConnected = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private attempt = 0;
+  private channel: ReturnType<typeof supabase.channel> | null = null;
 
   public connect() {
-    if (this.isConnected) return;
+    if (this.isConnected || this.channel) return;
 
-    logger.info('RealtimeService: Connecting...');
+    logger.info('RealtimeService: Connecting to Supabase Realtime...');
     useRealtimeStore.getState().setConnectionStatus('reconnecting');
 
-    // STUB: Simulate network delay and connection
-    setTimeout(() => {
-      this.isConnected = true;
-      this.attempt = 0;
-      useRealtimeStore.getState().setConnectionStatus('connected');
-      eventBus.emit('realtime:connected', {});
-      logger.info('RealtimeService: Connected to live feed');
-      
-      this.startMockStream();
-    }, 1500);
-  }
-
-  // ── MOCK STREAM FOR ARCHITECTURE VALIDATION ─────────────────
-  private mockInterval: ReturnType<typeof setInterval> | null = null;
-  private startMockStream() {
-    if (this.mockInterval) return;
-
-    logger.info('RealtimeService: Starting mock vessel stream (Architecture Validation)');
-    
-    // Generate 500 initial vessels around the world
-    const initialVessels = Array.from({ length: 500 }).map((_, i) => ({
-      id: `POS-${i}`,
-      vesselId: `VESSEL-${i}`,
-      orgId: 'ORG-1',
-      location: {
-        lat: (Math.random() - 0.5) * 160,
-        lng: (Math.random() - 0.5) * 360,
-      },
-      heading: Math.floor(Math.random() * 360),
-      course: null,
-      speed: Math.floor(Math.random() * 25),
-      rot: null,
-      navStatus: ['underway', 'anchored', 'moored', 'restricted'][Math.floor(Math.random() * 4)] as any,
-      timestamp: new Date().toISOString(),
-      source: 'ais' as const,
-    }));
-
-    initialVessels.forEach(v => useRealtimeStore.getState().upsertPosition(v));
-
-    // Simulate high-frequency WebSocket bursts (e.g. 50 updates per second)
-    this.mockInterval = setInterval(() => {
-      const updates = [];
-      // Pick 50 random vessels to update
-      for (let i = 0; i < 50; i++) {
-        const id = `VESSEL-${Math.floor(Math.random() * 500)}`;
-        const pos = useRealtimeStore.getState().positions.get(id);
-        if (pos && pos.heading !== null) {
-          // move slightly based on heading
-          const latMove = Math.cos(pos.heading * (Math.PI / 180)) * 0.01;
-          const lngMove = Math.sin(pos.heading * (Math.PI / 180)) * 0.01;
-          
-          updates.push({
-            ...pos,
-            location: {
-              lat: pos.location.lat + latMove,
-              lng: pos.location.lng + lngMove,
-            },
-            timestamp: new Date().toISOString(),
-          });
+    this.channel = supabase.channel('public:vessel_positions')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vessel_positions' },
+        (payload) => {
+          this.handlePositionUpdate(payload.new as any);
         }
-      }
-      
-      // Batch update the store
-      updates.forEach(u => useRealtimeStore.getState().upsertPosition(u));
-    }, 100);
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          this.isConnected = true;
+          this.attempt = 0;
+          useRealtimeStore.getState().setConnectionStatus('connected');
+          eventBus.emit('realtime:connected', {});
+          logger.info('RealtimeService: Connected to live feed');
+        } else if (status === 'CLOSED') {
+          this.isConnected = false;
+          useRealtimeStore.getState().setConnectionStatus('disconnected');
+          logger.warn('RealtimeService: Connection closed');
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error('RealtimeService: Channel error', err);
+          this.simulateDisconnection();
+        }
+      });
   }
 
-  private stopMockStream() {
-    if (this.mockInterval) {
-      clearInterval(this.mockInterval);
-      this.mockInterval = null;
+  private handlePositionUpdate(row: any) {
+    if (!row || !row.id || !row.vessel_id) return;
+
+    // Supabase Realtime often sends PostGIS geographies as EWKB hex strings.
+    // For simplicity here, we assume it's parsed or we fallback to 0,0 
+    // until a dedicated hex parser or PostgREST computed column is used.
+    let lat = 0;
+    let lng = 0;
+    
+    // Naive fallback for WKT 'POINT(lng lat)'
+    if (typeof row.location === 'string' && row.location.startsWith('POINT')) {
+      const match = row.location.match(/POINT\(([^ ]+)\s+([^)]+)\)/);
+      if (match) {
+        lng = parseFloat(match[1]);
+        lat = parseFloat(match[2]);
+      }
     }
+
+    const pos: VesselPosition = {
+      id: row.id,
+      vesselId: row.vessel_id,
+      orgId: row.org_id,
+      location: { lat, lng },
+      heading: row.heading ?? null,
+      course: row.course ?? null,
+      speed: row.speed ?? null,
+      rot: row.rot ?? null,
+      navStatus: row.nav_status ?? 'unknown',
+      timestamp: row.timestamp,
+      source: row.source,
+    };
+
+    useRealtimeStore.getState().upsertPosition(pos);
   }
-  // ────────────────────────────────────────────────────────────
 
   public disconnect() {
-    if (!this.isConnected) return;
+    if (!this.isConnected && !this.channel) return;
     
     logger.info('RealtimeService: Disconnecting...');
     this.isConnected = false;
     useRealtimeStore.getState().setConnectionStatus('disconnected');
     eventBus.emit('realtime:disconnected', {});
-    this.stopMockStream();
     
-    // TODO: supabase.removeAllChannels();
+    if (this.channel) {
+      supabase.removeChannel(this.channel);
+      this.channel = null;
+    }
   }
 
   public simulateDisconnection() {
