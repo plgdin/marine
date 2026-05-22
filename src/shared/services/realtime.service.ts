@@ -25,11 +25,11 @@ class RealtimeService {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'vessel_positions' },
-        (payload) => {
+        (payload: any) => {
           this.handlePositionUpdate(payload.new as any);
         }
       )
-      .subscribe((status, err) => {
+      .subscribe((status: string, err: any) => {
         if (status === 'SUBSCRIBED') {
           this.isConnected = true;
           this.attempt = 0;

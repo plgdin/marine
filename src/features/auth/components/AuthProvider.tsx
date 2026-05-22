@@ -44,7 +44,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         // 2. Listen for auth changes (login, logout, token refresh)
-        supabase.auth.onAuthStateChange((_event, newSession) => {
+        supabase.auth.onAuthStateChange((_event: any, newSession: any) => {
           if (newSession) {
             setSession(mapSupabaseSession(newSession));
           } else {

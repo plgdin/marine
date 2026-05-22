@@ -10,9 +10,10 @@ import { useAuthStore } from '@features/auth/stores/auth.store';
 
 const ROLE_HIERARCHY: Record<OrgRole, number> = {
   viewer: 1,
-  member: 2,
-  admin: 3,
-  owner: 4,
+  analyst: 2,
+  operator: 3,
+  admin: 4,
+  owner: 5,
 };
 
 export const hasRole = (requiredRole: OrgRole, currentRole?: OrgRole | null): boolean => {
@@ -21,11 +22,11 @@ export const hasRole = (requiredRole: OrgRole, currentRole?: OrgRole | null): bo
 };
 
 export const requireRole = (requiredRole: OrgRole): void => {
-  const currentRole = useAuthStore.getState().orgRole;
+  const currentRole = useAuthStore.getState().session?.orgRole as OrgRole | undefined;
   if (!hasRole(requiredRole, currentRole)) {
     throw new Error(`Forbidden: Requires ${requiredRole} access.`);
   }
 };
 
-export const isAdmin = (): boolean => hasRole('admin', useAuthStore.getState().orgRole);
-export const isOwner = (): boolean => hasRole('owner', useAuthStore.getState().orgRole);
+export const isAdmin = (): boolean => hasRole('admin', useAuthStore.getState().session?.orgRole as OrgRole | undefined);
+export const isOwner = (): boolean => hasRole('owner', useAuthStore.getState().session?.orgRole as OrgRole | undefined);
