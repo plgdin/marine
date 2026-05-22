@@ -6,6 +6,7 @@ const env = {
   supabaseUrl:    import.meta.env.VITE_SUPABASE_URL ?? '',
   supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
   mapboxToken:    import.meta.env.VITE_MAPBOX_TOKEN ?? '',
+  aisStreamApiKey: import.meta.env.VITE_AISSTREAM_API_KEY ?? '',
   appEnv:         import.meta.env.VITE_APP_ENV ?? 'development',
   enableDevtools: import.meta.env.VITE_ENABLE_DEVTOOLS === 'true',
   isDev:          import.meta.env.DEV,

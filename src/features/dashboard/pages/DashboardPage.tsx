@@ -1,14 +1,38 @@
 import { motion } from 'framer-motion';
 import { Ship, Map, Bell, Activity } from 'lucide-react';
-
-const stats = [
-  { label: 'Active Vessels',    value: '—',   icon: Ship,     color: 'var(--color-accent-cyan)' },
-  { label: 'Vessels Underway',  value: '—',   icon: Activity, color: 'var(--color-status-underway)' },
-  { label: 'Alert Events',      value: '—',   icon: Bell,     color: 'var(--color-status-alert)' },
-  { label: 'Fleets Tracked',    value: '—',   icon: Map,      color: 'var(--color-marine-300)' },
-];
+import { useRealtimeStore } from '@shared/stores/realtime.store';
+import { useMemo } from 'react';
 
 export default function DashboardPage() {
+  const _positionVersion = useRealtimeStore(s => s._positionVersion);
+  const unreadAlertCount = useRealtimeStore(s => s.unreadAlertCount);
+  
+  // Compute stats from the mutable positions buffer
+  const statsData = useMemo(() => {
+    const positions = useRealtimeStore.getState().positions;
+    let underway = 0;
+    
+    for (const pos of positions.values()) {
+      if (pos.navStatus === 'underway') {
+        underway++;
+      }
+    }
+    
+    return {
+      activeVessels: positions.size,
+      vesselsUnderway: underway,
+      alertEvents: unreadAlertCount,
+      fleetsTracked: 0, // Mock for now
+    };
+  }, [_positionVersion, unreadAlertCount]);
+
+  const stats = [
+    { label: 'Active Vessels',    value: statsData.activeVessels.toLocaleString(),   icon: Ship,     color: 'var(--color-accent-cyan)' },
+    { label: 'Vessels Underway',  value: statsData.vesselsUnderway.toLocaleString(), icon: Activity, color: 'var(--color-status-underway)' },
+    { label: 'Alert Events',      value: statsData.alertEvents.toLocaleString(),     icon: Bell,     color: 'var(--color-status-alert)' },
+    { label: 'Fleets Tracked',    value: statsData.fleetsTracked.toLocaleString(),   icon: Map,      color: 'var(--color-marine-300)' },
+  ];
+
   return (
     <div className="p-6 space-y-6">
       {/* Page header */}
@@ -55,8 +79,6 @@ export default function DashboardPage() {
               <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
                 {stat.value}
               </p>
-              {/* Skeleton bar */}
-              <div className="mt-3 h-1 rounded-full skeleton" style={{ width: '60%' }} />
             </motion.div>
           );
         })}
