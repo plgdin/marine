@@ -12,6 +12,7 @@ export interface VesselGeoJsonProperties {
   heading: number;       // True heading (direction bow is pointing)
   course: number;        // Course over ground (direction of movement)
   timestamp: string;
+  source: string;
 }
 
 /**
@@ -28,7 +29,7 @@ export function positionsToGeoJson(
   for (const pos of positions.values()) {
     // Enrich with AIS metadata if available
     const metadata = getVesselMetadata(pos.vesselId);
-    const shipName = metadata?.name || pos.vesselId;
+    const shipName = metadata?.name || pos.name || pos.vesselId;
     
     const vesselType = metadata?.vesselType || mapAISShipType(metadata?.shipType ?? 0, shipName);
 
@@ -49,6 +50,7 @@ export function positionsToGeoJson(
         heading: pos.heading ?? pos.course ?? 0,
         course: pos.course ?? pos.heading ?? 0,
         timestamp: pos.timestamp,
+        source: pos.source,
       },
     });
   }

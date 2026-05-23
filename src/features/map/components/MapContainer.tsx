@@ -3,15 +3,52 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMapStore } from '../stores/map.store';
 import { VesselLayer } from './layers/VesselLayer';
 import { VesselPopup } from './VesselPopup';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { MapMouseEvent } from 'maplibre-gl';
 import MAP_STYLE from '../styles/map-style';
+import { gfwService } from '@shared/services/gfw.service';
+import { vesselApiService } from '@shared/services/vesselapi.service';
 
 export function MapContainer() {
   const viewport = useMapStore((s) => s.viewport);
   const setViewport = useMapStore((s) => s.setViewport);
   const setSelectedVessel = useMapStore((s) => s.setSelectedVessel);
 
+  useEffect(() => {
+    // transparencyService.startPolling(() => {
+    //   const state = useMapStore.getState();
+    //   return { lat: state.viewport.latitude, lng: state.viewport.longitude };
+    // });
+
+    gfwService.startPolling();
+
+    vesselApiService.startPolling(() => {
+      const state = useMapStore.getState();
+      
+      // If zoomed out, fetch high-traffic global zones to populate the map
+      if (state.viewport.zoom < 5) {
+        return [
+          { minLat: 49.5, maxLat: 51.5, minLon: -2, maxLon: 0 }, // English Channel
+          { minLat: 1, maxLat: 3, minLon: 102.5, maxLon: 104.5 }, // Singapore
+          { minLat: 28, maxLat: 30, minLon: -91, maxLon: -89 }, // Gulf of Mexico
+        ];
+      }
+
+      // If zoomed in, strictly fetch the 2x2 degree box around the viewport
+      return [{
+        minLat: state.viewport.latitude - 1,
+        maxLat: state.viewport.latitude + 1,
+        minLon: state.viewport.longitude - 1,
+        maxLon: state.viewport.longitude + 1,
+      }];
+    });
+
+    return () => {
+      // transparencyService.stopPolling();
+      gfwService.stopPolling();
+      vesselApiService.stopPolling();
+    };
+  }, []);
   const onMouseMove = useCallback((event: MapMouseEvent) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const features = (event as any).features;

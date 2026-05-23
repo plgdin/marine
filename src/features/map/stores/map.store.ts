@@ -15,6 +15,10 @@ export interface MapLayerState {
   showGeofences: boolean;
   showTrajectories: boolean;
   showLabels: boolean;
+  showAisVessels: boolean;
+  showGfwVessels: boolean;
+  showTransparencyVessels: boolean;
+  showVesselApiVessels: boolean;
 }
 
 interface MapStore {
@@ -43,6 +47,10 @@ const DEFAULT_LAYERS: MapLayerState = {
   showGeofences: true,
   showTrajectories: false,
   showLabels: true,
+  showAisVessels: true,
+  showGfwVessels: true,
+  showTransparencyVessels: true,
+  showVesselApiVessels: true,
 };
 
 export const useMapStore = create<MapStore>()(

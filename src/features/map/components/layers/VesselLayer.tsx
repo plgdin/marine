@@ -59,18 +59,25 @@ const unclusteredLayer: LayerProps = {
   paint: {
     'icon-color': [
       'match',
-      ['get', 'status'],
-      'underway',          '#00e676',   // Bright green
-      'anchored',          '#ffab00',   // Amber
-      'not-under-command', '#d50000',   // Red
-      'restricted',        '#ff3d00',   // Orange
-      'moored',            '#40c4ff',   // Light blue
-      'aground',           '#795548',   // Brown
-      'fishing',           '#d500f9',   // Purple
-      '#78909c'                         // Default grey-blue
+      ['get', 'vesselType'],
+      'cargo',        '#2E7D32',   // Dark green
+      'tanker',       '#C62828',   // Deep red
+      'bulk_carrier', '#BF360C',   // Deep orange-red
+      'passenger',    '#1565C0',   // Dark blue
+      'fishing',      '#6A1B9A',   // Deep purple
+      'tug',          '#E65100',   // Burnt orange
+      'hsc',          '#00838F',   // Teal
+      '#455A64'                    // Blue-gray default
     ],
-    'icon-halo-color': '#FFFFFF',
-    'icon-halo-width': 1,
+    'icon-halo-color': [
+      'match',
+      ['get', 'source'],
+      'transparency', '#00E5FF', // Cyan halo for open ocean / transparency API
+      'globalfishing', '#00E676', // Green halo for globalfishing
+      'api', '#FF4081', // Pink/Purple halo for VesselAPI
+      '#FFFFFF' // White halo for standard AIS
+    ],
+    'icon-halo-width': 1.5,
     'icon-opacity': 0.9,
   },
 };
@@ -79,11 +86,20 @@ const unclusteredLayer: LayerProps = {
 const EMPTY_GEOJSON: any = { type: 'FeatureCollection', features: [] };
 
 export function VesselLayer() {
-  const { showVessels, showHeatmap } = useMapStore((s) => s.layers);
+  const { showVessels, showHeatmap, showAisVessels, showGfwVessels, showTransparencyVessels, showVesselApiVessels } = useMapStore((s) => s.layers);
 
   // Initialize the imperative sync bridge
   useMapSync();
 
+  // Create a dynamic filter array based on active source toggles
+  const activeSources: any[] = [];
+  if (showAisVessels) activeSources.push(['==', ['get', 'source'], 'ais'], ['==', ['get', 'source'], 'manual']);
+  if (showGfwVessels) activeSources.push(['==', ['get', 'source'], 'globalfishing']);
+  if (showTransparencyVessels) activeSources.push(['==', ['get', 'source'], 'transparency']);
+  if (showVesselApiVessels) activeSources.push(['==', ['get', 'source'], 'api']);
+
+  // If no sources are active, use a filter that matches nothing, otherwise use 'any'
+  const filterExpression = (activeSources.length > 0 ? ['any', ...activeSources] : ['==', 'id', 'nothing']) as any;
   return (
     <Source
       id="vessels"
@@ -93,7 +109,7 @@ export function VesselLayer() {
       tolerance={0}
     >
       {showHeatmap && <Layer {...heatmapLayer} />}
-      {showVessels && <Layer {...unclusteredLayer} />}
+      {showVessels && <Layer {...(unclusteredLayer as any)} filter={filterExpression} />}
     </Source>
   );
 }

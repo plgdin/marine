@@ -20,7 +20,7 @@ export default function LoginPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: form.email,
         password: form.password,
       });
