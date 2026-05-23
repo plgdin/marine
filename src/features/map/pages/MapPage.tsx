@@ -1,17 +1,13 @@
 import { MapContainer } from '../components/MapContainer';
 import { useMapStore } from '../stores/map.store';
-import { useAISStream } from '../hooks/useAISStream';
-import { Layers, Radio, Ship, Activity } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Layers, Radio } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 
 export default function MapPage() {
   const layers = useMapStore((s) => s.layers);
   const toggleLayer = useMapStore((s) => s.toggleLayer);
   const connectionStatus = useRealtimeStore((s) => s.connectionStatus);
-
-  // Connect to AIS Stream — worldwide coverage by default
-  const aisStats = useAISStream();
 
   return (
     <div className="w-full h-full relative">
@@ -47,37 +43,6 @@ export default function MapPage() {
               </p>
             </div>
           </div>
-          
-          {/* Live stats */}
-          <AnimatePresence>
-            {connectionStatus === 'connected' && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="grid grid-cols-2 gap-3 pt-2 border-t border-border-default"
-              >
-                <div className="flex items-center gap-2">
-                  <Ship size={14} className="text-accent-cyan" />
-                  <div>
-                    <p className="text-lg font-bold text-text-primary leading-none">
-                      {aisStats.vesselCount.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-text-tertiary">Vessels</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Activity size={14} className="text-accent-cyan" />
-                  <div>
-                    <p className="text-lg font-bold text-text-primary leading-none">
-                      {aisStats.messageCount.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-text-tertiary">Messages</p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </motion.div>
 

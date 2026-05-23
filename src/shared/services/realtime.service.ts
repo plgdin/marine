@@ -21,10 +21,10 @@ class RealtimeService {
     logger.info('RealtimeService: Connecting to Supabase Realtime...');
     useRealtimeStore.getState().setConnectionStatus('reconnecting');
 
-    this.channel = supabase.channel('public:vessel_positions')
+    this.channel = supabase.channel('public:vessel_latest_positions')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'vessel_positions' },
+        { event: '*', schema: 'public', table: 'vessel_latest_positions' },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,17 +55,36 @@ class RealtimeService {
     if (!row || !row.id || !row.vessel_id) return;
 
     // Supabase Realtime often sends PostGIS geographies as EWKB hex strings.
-    // For simplicity here, we assume it's parsed or we fallback to 0,0 
-    // until a dedicated hex parser or PostgREST computed column is used.
     let lat = 0;
     let lng = 0;
     
-    // Naive fallback for WKT 'POINT(lng lat)'
-    if (typeof row.location === 'string' && row.location.startsWith('POINT')) {
-      const match = row.location.match(/POINT\(([^ ]+)\s+([^)]+)\)/);
-      if (match) {
-        lng = parseFloat(match[1]);
-        lat = parseFloat(match[2]);
+    if (typeof row.location === 'string') {
+      // WKT fallback
+      if (row.location.startsWith('POINT')) {
+        const match = row.location.match(/POINT\(([^ ]+)\s+([^)]+)\)/);
+        if (match) {
+          lng = parseFloat(match[1]);
+          lat = parseFloat(match[2]);
+        }
+      } 
+      // EWKB (PostGIS hex) parser
+      else if (row.location.startsWith('0101000020E6100000')) {
+        try {
+          const hex = row.location.substring(18); 
+          if (hex.length >= 32) {
+            const lngHex = hex.substring(0, 16);
+            const latHex = hex.substring(16, 32);
+            
+            const parseHexDouble = (h: string) => {
+              const bytes = new Uint8Array(h.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+              return new Float64Array(bytes.buffer)[0];
+            };
+            lng = parseHexDouble(lngHex);
+            lat = parseHexDouble(latHex);
+          }
+        } catch (e) {
+          logger.error('Failed to parse WKB', e);
+        }
       }
     }
 
