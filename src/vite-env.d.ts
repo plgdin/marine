@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY: string;
   readonly VITE_MAPBOX_TOKEN: string;
   readonly VITE_AISSTREAM_API_KEY?: string;
+  readonly VITE_GFW_API_TOKEN?: string;
   readonly VITE_APP_ENV: 'development' | 'staging' | 'production';
   readonly VITE_ENABLE_DEVTOOLS?: string;
 }

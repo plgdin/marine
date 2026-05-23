@@ -3,22 +3,33 @@ import { Ship, Navigation } from 'lucide-react';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { useMemo } from 'react';
 import { getVesselMetadata } from '@shared/services/aisstream.service';
+import { useMapStore } from '../../map/stores/map.store';
 
 export default function VesselsPage() {
-  const _positionVersion = useRealtimeStore(s => s._positionVersion);
+  const _positionVersion = useRealtimeStore((s: any) => s._positionVersion);
+  const layers = useMapStore((s: any) => s.layers);
   
   const vessels = useMemo(() => {
     const positions = useRealtimeStore.getState().positions;
-    return Array.from(positions.values()).map(pos => {
-      const meta = getVesselMetadata(pos.vesselId);
-      return {
-        ...pos,
-        name: meta?.name || 'Unknown',
-        type: meta?.vesselType || 'other',
-        destination: meta?.destination || 'N/A'
-      };
-    }).sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  }, [_positionVersion]);
+    return Array.from(positions.values())
+      .filter(pos => {
+        if (pos.source === 'ais' || pos.source === 'manual') return layers.showAisVessels;
+        if (pos.source === 'api') return layers.showVesselApiVessels;
+        if (pos.source === 'globalfishing') return layers.showGfwVessels;
+        if (pos.source === 'transparency') return layers.showTransparencyVessels;
+        return true;
+      })
+      .map(pos => {
+        const meta = getVesselMetadata(pos.vesselId);
+        return {
+          ...pos,
+          name: meta?.name || 'Unknown',
+          type: meta?.vesselType || 'other',
+          destination: meta?.destination || 'N/A'
+        };
+      })
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [_positionVersion, layers.showAisVessels, layers.showGfwVessels, layers.showTransparencyVessels, layers.showVesselApiVessels]);
 
   return (
     <div className="p-6 space-y-4">
@@ -46,11 +57,12 @@ export default function VesselsPage() {
                 <th className="px-6 py-3 font-medium tracking-wider">MMSI</th>
                 <th className="px-6 py-3 font-medium tracking-wider">Type</th>
                 <th className="px-6 py-3 font-medium tracking-wider">Status</th>
+                <th className="px-6 py-3 font-medium tracking-wider">Source</th>
                 <th className="px-6 py-3 font-medium tracking-wider">Speed / Course</th>
                 <th className="px-6 py-3 font-medium tracking-wider">Destination</th>
               </tr>
             </thead>
-            <tbody className="divide-y" style={{ divideColor: 'var(--color-border-subtle)' }}>
+            <tbody className="divide-y" style={{ '--tw-divide-color': 'var(--color-border-subtle)' } as React.CSSProperties}>
               {vessels.slice(0, 100).map((vessel) => (
                 <tr key={vessel.id} className="hover:bg-opacity-50 transition-colors" style={{ color: 'var(--color-text-secondary)' }}>
                   <td className="px-6 py-4 whitespace-nowrap font-medium" style={{ color: 'var(--color-text-primary)' }}>
@@ -64,6 +76,17 @@ export default function VesselsPage() {
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 rounded-full text-xs" style={{ background: 'var(--color-surface-overlay)' }}>
                       {vessel.navStatus}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-medium uppercase tracking-wide ${
+                      vessel.source === 'ais' ? 'bg-green-100 text-green-800' : 
+                      vessel.source === 'transparency' ? 'bg-cyan-100 text-cyan-800' :
+                      vessel.source === 'globalfishing' ? 'bg-emerald-100 text-emerald-800' :
+                      vessel.source === 'api' ? 'bg-pink-100 text-pink-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {vessel.source}
                     </span>
                   </td>
                   <td className="px-6 py-4">

@@ -71,7 +71,8 @@ export interface VesselPosition {
   navStatus: NavStatus;
   rot:       Nullable<number>;  // rate of turn
   timestamp: string;
-  source:    'ais' | 'manual' | 'api';
+  source:    'ais' | 'manual' | 'api' | 'transparency' | 'globalfishing';
+  name?:     string;
 }
 
 export interface VesselWithPosition extends Vessel {
