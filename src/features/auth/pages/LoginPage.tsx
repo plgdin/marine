@@ -4,9 +4,14 @@ import { useState } from 'react';
 import { ROUTES } from '@config/routes';
 import { useToast }    from '@shared/components/feedback/ToastProvider';
 import { APP_NAME }    from '@shared/utils/constants';
+import { supabase }    from '@config/supabase';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function LoginPage() {
   const { error: showError } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || ROUTES.DASHBOARD;
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -15,15 +20,15 @@ export default function LoginPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // TODO: replace with real Supabase auth
-      // const { data, error } = await supabaseClient.auth.signInWithPassword(form);
-      // if (error) throw error;
-      // setSession(mapSupabaseSession(data.session));
-      // navigate(from, { replace: true });
-
-      // Stub: simulate login
-      await new Promise((r) => setTimeout(r, 800));
-      showError('Auth not configured — add Supabase credentials to .env.local');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
+      });
+      
+      if (error) throw error;
+      
+      // AuthProvider will automatically pick up the session change
+      navigate(from, { replace: true });
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Login failed');
     } finally {

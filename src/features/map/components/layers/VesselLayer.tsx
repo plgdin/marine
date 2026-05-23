@@ -59,15 +59,15 @@ const unclusteredLayer: LayerProps = {
   paint: {
     'icon-color': [
       'match',
-      ['get', 'vesselType'],
-      'cargo',        '#2E7D32',   // Dark green
-      'tanker',       '#C62828',   // Deep red
-      'bulk_carrier', '#BF360C',   // Deep orange-red
-      'passenger',    '#1565C0',   // Dark blue
-      'fishing',      '#6A1B9A',   // Deep purple
-      'tug',          '#E65100',   // Burnt orange
-      'hsc',          '#00838F',   // Teal
-      '#455A64'                    // Blue-gray default
+      ['get', 'status'],
+      'underway',          '#00e676',   // Bright green
+      'anchored',          '#ffab00',   // Amber
+      'not-under-command', '#d50000',   // Red
+      'restricted',        '#ff3d00',   // Orange
+      'moored',            '#40c4ff',   // Light blue
+      'aground',           '#795548',   // Brown
+      'fishing',           '#d500f9',   // Purple
+      '#78909c'                         // Default grey-blue
     ],
     'icon-halo-color': '#FFFFFF',
     'icon-halo-width': 1,

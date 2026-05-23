@@ -52,7 +52,7 @@ class RealtimeService {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlePositionUpdate(row: any) {
-    if (!row || !row.id || !row.vessel_id) return;
+    if (!row || !row.vessel_id) return;
 
     // Supabase Realtime often sends PostGIS geographies as EWKB hex strings.
     let lat = 0;
@@ -89,7 +89,7 @@ class RealtimeService {
     }
 
     const pos: VesselPosition = {
-      id: row.id,
+      id: row.id || row.vessel_id,
       vesselId: row.vessel_id,
       orgId: row.org_id,
       location: { lat, lng },

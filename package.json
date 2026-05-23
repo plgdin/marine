@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ingest": "tsx scripts/ingest-ais.ts",
+    "setup-user": "tsx scripts/setup-dev-user.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
@@ -17,6 +19,7 @@
     "@types/maplibre-gl": "^1.13.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.2.1",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.16.0",
     "mapbox-gl": "^3.24.0",
@@ -35,6 +38,7 @@
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.21",
     "eslint": "^10.3.0",
@@ -42,6 +46,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.22.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"
