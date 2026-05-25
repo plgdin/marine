@@ -27,7 +27,9 @@ export function useMapSync() {
           source,
           nav_status,
           vessels ( name, mmsi, vessel_type )
-        `); // Temporarily removed .eq('org_id', orgId) to see if we get anything
+        `)
+        .eq('org_id', orgId)
+        .limit(1000);
 
       if (error) {
         console.error('[DEBUG] Failed to load ships from DB:', error);
@@ -46,7 +48,7 @@ export function useMapSync() {
 
     // 2. SUBSCRIBE TO LIVE DATABASE UPDATES
     console.log("Connecting Supabase Realtime...");
-    const channel = supabase.channel('public:vessel_latest_positions')
+    const channel = supabase.channel('mapsync:vessel_latest_positions')
       .on(
         'postgres_changes',
         {

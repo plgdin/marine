@@ -8,6 +8,7 @@ import type { MapMouseEvent } from 'maplibre-gl';
 import MAP_STYLE from '../styles/map-style';
 import { gfwService } from '@shared/services/gfw.service';
 import { vesselApiService } from '@shared/services/vesselapi.service';
+import { useAuthStore } from '../../auth/stores/auth.store';
 
 export function MapContainer() {
   const viewport = useMapStore((s) => s.viewport);
@@ -102,6 +103,8 @@ export function MapContainer() {
       <Map
         id="main-map"
         initialViewState={viewport}
+        maxPitch={0}
+        minPitch={0}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onMove={(evt: any) => setViewport(evt.viewState)}
         mapStyle={MAP_STYLE}
@@ -116,10 +119,12 @@ export function MapContainer() {
         reuseMaps
         transformRequest={(url) => {
           if (url.includes('rpc/vessel_tiles')) {
+            const token = useAuthStore.getState().session?.accessToken;
             return {
               url,
               headers: {
                 Accept: 'application/vnd.pbf',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
               },
             };
           }
