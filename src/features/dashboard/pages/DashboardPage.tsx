@@ -11,10 +11,14 @@ export default function DashboardPage() {
   const statsData = useMemo(() => {
     const positions = useRealtimeStore.getState().positions;
     let underway = 0;
+    let vesselApiCount = 0;
     
     for (const pos of positions.values()) {
       if (pos.navStatus === 'underway') {
         underway++;
+      }
+      if (pos.source === 'api') {
+        vesselApiCount++;
       }
     }
     
@@ -22,7 +26,7 @@ export default function DashboardPage() {
       activeVessels: positions.size,
       vesselsUnderway: underway,
       alertEvents: unreadAlertCount,
-      fleetsTracked: 0, // Mock for now
+      vesselApiVessels: vesselApiCount,
     };
   }, [_positionVersion, unreadAlertCount]);
 
@@ -30,7 +34,7 @@ export default function DashboardPage() {
     { label: 'Active Vessels',    value: statsData.activeVessels.toLocaleString(),   icon: Ship,     color: 'var(--color-accent-cyan)' },
     { label: 'Vessels Underway',  value: statsData.vesselsUnderway.toLocaleString(), icon: Activity, color: 'var(--color-status-underway)' },
     { label: 'Alert Events',      value: statsData.alertEvents.toLocaleString(),     icon: Bell,     color: 'var(--color-status-alert)' },
-    { label: 'Fleets Tracked',    value: statsData.fleetsTracked.toLocaleString(),   icon: Map,      color: 'var(--color-marine-300)' },
+    { label: 'VesselAPI Tracked', value: statsData.vesselApiVessels.toLocaleString(), icon: Map,      color: '#FF4081' },
   ];
 
   return (
@@ -84,34 +88,66 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Placeholder content areas */}
+      {/* Placeholder and Vessel API areas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {[
-          { title: 'Fleet Activity', cols: 2, height: 280 },
-          { title: 'Recent Alerts',  cols: 1, height: 280 },
-        ].map((block) => (
-          <motion.div
-            key={block.title}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className={`rounded-xl p-5 ${block.cols === 2 ? 'lg:col-span-2' : ''}`}
-            style={{
-              background: 'var(--color-surface-raised)',
-              border: '1px solid var(--color-border-subtle)',
-              minHeight: block.height,
-            }}
-          >
-            <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>
-              {block.title}
-            </h2>
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, j) => (
-                <div key={j} className="h-8 skeleton rounded-lg" style={{ width: `${80 - j * 10}%` }} />
-              ))}
-            </div>
-          </motion.div>
-        ))}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="rounded-xl p-5 lg:col-span-2"
+          style={{
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border-subtle)',
+            minHeight: 280,
+          }}
+        >
+          <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-primary)' }}>
+            <span className="w-2 h-2 rounded-full bg-[#FF4081] shadow-[0_0_4px_#FF4081]" />
+            Recent VesselAPI Data
+          </h2>
+          <div className="space-y-3 overflow-y-auto max-h-[220px] custom-scrollbar pr-2">
+            {statsData.vesselApiVessels === 0 ? (
+              <p className="text-sm text-text-tertiary">No VesselAPI data loaded. Pan the map to load data.</p>
+            ) : (
+              Array.from(useRealtimeStore.getState().positions.values())
+                .filter(p => p.source === 'api')
+                .slice(0, 10)
+                .map((vessel) => (
+                  <div key={vessel.id} className="p-3 rounded-lg flex items-center justify-between border border-border-default bg-surface-overlay">
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{vessel.name || 'Unknown Vessel'}</p>
+                      <p className="text-xs text-text-tertiary">MMSI: {vessel.vesselId}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-text-secondary">{vessel.speed !== null ? `${vessel.speed} kn` : 'N/A'}</p>
+                      <p className="text-xs text-text-tertiary">{new Date(vessel.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="rounded-xl p-5"
+          style={{
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border-subtle)',
+            minHeight: 280,
+          }}
+        >
+          <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-primary)' }}>
+            Recent Alerts
+          </h2>
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, j) => (
+              <div key={j} className="h-8 skeleton rounded-lg" style={{ width: `${80 - j * 10}%` }} />
+            ))}
+          </div>
+        </motion.div>
       </div>
     </div>
   );

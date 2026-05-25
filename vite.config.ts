@@ -18,6 +18,15 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets'),
     },
   },
+  server: {
+    proxy: {
+      '/api/vesselapi': {
+        target: 'https://api.vesselapi.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/vesselapi/, ''),
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

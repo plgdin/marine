@@ -2,7 +2,8 @@ import { logger } from '@shared/utils/logger';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 import type { VesselPosition } from '@shared/types/domain.types';
 
-const VESSEL_API_URL = 'https://api.vesselapi.com/v1';
+// Use local proxy to avoid CORS issues
+const VESSEL_API_URL = '/api/vesselapi/v1';
 
 function getNavStatusString(status: number): VesselPosition['navStatus'] {
   const map: Record<number, VesselPosition['navStatus']> = {
