@@ -114,6 +114,17 @@ export function MapContainer() {
           setSelectedVessel(null);
         }}
         reuseMaps
+        transformRequest={(url) => {
+          if (url.includes('rpc/vessel_tiles')) {
+            return {
+              url,
+              headers: {
+                Accept: 'application/vnd.pbf',
+              },
+            };
+          }
+          return { url };
+        }}
       >
         <VesselLayer />
         <VesselPopup />

@@ -27,6 +27,7 @@ export default function DashboardPage() {
       vesselsUnderway: underway,
       alertEvents: unreadAlertCount,
       vesselApiVessels: vesselApiCount,
+      fleetsTracked: 0, // Mock for now
     };
   }, [_positionVersion, unreadAlertCount]);
 
@@ -35,6 +36,7 @@ export default function DashboardPage() {
     { label: 'Vessels Underway',  value: statsData.vesselsUnderway.toLocaleString(), icon: Activity, color: 'var(--color-status-underway)' },
     { label: 'Alert Events',      value: statsData.alertEvents.toLocaleString(),     icon: Bell,     color: 'var(--color-status-alert)' },
     { label: 'VesselAPI Tracked', value: statsData.vesselApiVessels.toLocaleString(), icon: Map,      color: '#FF4081' },
+    { label: 'Fleets Tracked',    value: statsData.fleetsTracked.toLocaleString(),   icon: Map,      color: 'var(--color-marine-300)' },
   ];
 
   return (
