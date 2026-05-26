@@ -11,7 +11,6 @@ export function useMapSync() {
   const orgId = useOrgId(); 
 
   useEffect(() => {
-    if (!orgId) return;
 
     // 1. FETCH INITIAL MAP STATE
     const fetchInitialState = async () => {
@@ -28,7 +27,6 @@ export function useMapSync() {
           nav_status,
           vessels ( name, mmsi, vessel_type )
         `)
-        .eq('org_id', orgId)
         .limit(1000);
 
       if (error) {
@@ -54,8 +52,7 @@ export function useMapSync() {
         {
           event: '*', // Listen to INSERT and UPDATE
           schema: 'public',
-          table: 'vessel_latest_positions',
-          filter: `org_id=eq.${orgId}` 
+          table: 'vessel_latest_positions'
         },
         (payload) => {
           // Push the new coordinate to the Zustand store so React re-renders the dot

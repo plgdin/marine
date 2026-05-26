@@ -22,11 +22,9 @@ export default function MapPage() {
   useEffect(() => {
     // Initial fetch of total vessels (Querying vessels table as it reflects discovered fleet)
     const fetchCount = () => {
-      if (!orgId) return;
       supabase
         .from('vessels')
         .select('*', { count: 'exact', head: true })
-        .eq('org_id', orgId)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .then(({ count, error }: any) => {
           if (error) console.error("Count Error:", error);

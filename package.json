@@ -2,7 +2,7 @@
   "name": "marine-workspace",
   "private": true,
   "scripts": {
-    "dev": "npx pnpm -r --parallel dev",
+    "dev": "npx pnpm -C frontend dev",
     "build": "npx pnpm -r build",
     "start:engine": "npx pnpm -C ingestion-engine start",
     "dev:frontend": "npx pnpm -C frontend dev"
