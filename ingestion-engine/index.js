@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import Redis from 'ioredis';
+import http from 'http';
 
 dotenv.config();
 
@@ -182,4 +183,20 @@ async function startEngine() {
   });
 }
 
-startEngine();
+// Start the Keep-Alive Web Server for Render
+const PORT = process.env.PORT || 8080;
+const server = http.createServer((req, res) => {
+  if (req.url === '/ping' || req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+  } else {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not Found');
+  }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Keep-Alive Web Server running on port ${PORT}`);
+  // Start the AIS engine once the web server is up
+  startEngine();
+});
