@@ -6,10 +6,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { useEffect, useState } from 'react';
 import { supabase } from '../../../config/supabase';
+import { useOrgId } from '../../auth/stores/auth.store';
 
 export default function MapPage() {
   useMapSync(); // <--- Turns on the data pipeline
   
+  const orgId = useOrgId();
   const layers = useMapStore((s) => s.layers);
   const toggleLayer = useMapStore((s) => s.toggleLayer);
   const connectionStatus = useRealtimeStore((s) => s.connectionStatus);
@@ -20,10 +22,11 @@ export default function MapPage() {
   useEffect(() => {
     // Initial fetch of total vessels (Querying vessels table as it reflects discovered fleet)
     const fetchCount = () => {
+      if (!orgId) return;
       supabase
         .from('vessels')
         .select('*', { count: 'exact', head: true })
-        .eq('org_id', 'deeda80e-96c3-42c7-9ea5-e5fc9c7135f8') // Hardcode to target org for now
+        .eq('org_id', orgId)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .then(({ count, error }: any) => {
           if (error) console.error("Count Error:", error);
@@ -51,7 +54,7 @@ export default function MapPage() {
       clearInterval(countInterval);
       clearInterval(messageInterval);
     };
-  }, []);
+  }, [orgId]);
 
   return (
     <div className="w-full h-full relative">

@@ -51,7 +51,7 @@ export function VesselLayer() {
     return () => clearInterval(interval);
   }, []);
 
-  const TILE_URL = `${import.meta.env.VITE_SUPABASE_URL}rest/v1/rpc/vessel_tiles?z={z}&x={x}&y={y}&apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}&tick=${tick}`;
+  const TILE_URL = `${import.meta.env.VITE_SUPABASE_URL}rest/v1/rpc/vessel_tiles?z={z}&x={x}&y={y}&tick=${tick}&apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
 
   return (
     <Source

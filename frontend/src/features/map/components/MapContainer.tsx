@@ -57,7 +57,7 @@ export function MapContainer() {
     const feature = features?.[0];
     
     if (feature && feature.layer?.id === 'vessels-unclustered') {
-      const vesselId = feature.properties?.id;
+      const vesselId = feature.properties?.vessel_id;
       if (vesselId) {
         document.body.style.cursor = 'pointer';
         setSelectedVessel(vesselId);
