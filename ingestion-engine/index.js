@@ -1,7 +1,6 @@
 import WebSocket from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import Redis from 'ioredis';
 import http from 'http';
 
 dotenv.config();
@@ -11,8 +10,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Connect to Redis (Defaults to localhost:6379)
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+// Local In-Memory Cache (Replaces Redis to avoid 500k rate limits)
+const fleetCache = new Map();
+const throttleCache = new Map();
+
+// Prevent memory leaks: Clean up old throttle timestamps every 1 hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [mmsi, timestamp] of throttleCache.entries()) {
+    if (now - timestamp > 60 * 60 * 1000) {
+      throttleCache.delete(mmsi);
+    }
+  }
+}, 60 * 60 * 1000);
 
 // Bulk queues (Local arrays for batching before DB insert)
 let positionBatch = new Map();
@@ -39,7 +49,7 @@ function getVesselType(code) {
 }
 
 async function startEngine() {
-  console.log('Connecting to Redis & Supabase...');
+  console.log('Connecting to Supabase...');
   
   const { data: org, error: orgErr } = await supabase
     .from('organizations').select('id').eq('slug', 'ais-ingestion-org').single();
@@ -70,10 +80,8 @@ async function startEngine() {
           .select('mmsi, id');
         
         if (!error && data) {
-          // Cache UUIDs in Redis so all instances know them
-          const pipeline = redis.pipeline();
-          data.forEach(v => pipeline.set(`fleet:${v.mmsi}`, v.id));
-          await pipeline.exec();
+          // Cache UUIDs in local memory so we don't query DB
+          data.forEach(v => fleetCache.set(v.mmsi, v.id));
           console.log(`[DB] Upserted & Cached ${data.length} vessel profiles`);
         }
       } catch (e) {
@@ -140,16 +148,17 @@ async function startEngine() {
       const navStatus = NAV_STATUS_MAP[report.NavigationalStatus] || 'undefined';
       const speed = report.Sog || 0;
       
-      // Distributed Throttle using Redis EXPIRE logic
+      // Distributed Throttle using local memory cache logic
       const isStationary = navStatus === 'at_anchor' || navStatus === 'moored' || speed < 0.5;
       const throttleMs = isStationary ? 15 * 60 * 1000 : 5 * 60 * 1000; 
 
-      // NX means "Set only if it does not exist". 
-      // If it exists, Redis blocks it and returns null, effectively dropping the redundant ping!
-      const acquired = await redis.set(`throttle:${mmsi}`, '1', 'PX', throttleMs, 'NX');
-      if (!acquired) return; // Ship hasn't moved enough or timer hasn't expired
+      const now = Date.now();
+      const lastPing = throttleCache.get(mmsi) || 0;
+      if (now - lastPing < throttleMs) return; // Ship hasn't moved enough or timer hasn't expired
+      
+      throttleCache.set(mmsi, now);
 
-      const vesselId = await redis.get(`fleet:${mmsi}`);
+      const vesselId = fleetCache.get(mmsi);
       if (!vesselId) {
         if (!newVesselsBatch.has(mmsi)) {
           newVesselsBatch.set(mmsi, {
