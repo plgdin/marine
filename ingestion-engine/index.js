@@ -104,7 +104,7 @@ async function startEngine() {
         console.error("[DB] Position Bulk Upsert Exception:", e);
       }
     }
-  }, 2500);
+  }, 10000);
 
   const ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
 
