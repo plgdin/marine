@@ -1,4 +1,4 @@
-.counter {
+﻿.counter {
   font-size: 16px;
   padding: 5px 10px;
   border-radius: 5px;
@@ -181,4 +181,19 @@
     right: 0;
     border-right-color: var(--border);
   }
+}
+
+/* Global overrides for MapLibre popup to allow our custom UI to reach the edges */
+.vessel-popup .maplibregl-popup-content {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.vessel-popup .maplibregl-popup-close-button {
+  display: none !important;
+}
+
+.vessel-popup .maplibregl-popup-tip {
+  display: none !important;
 }

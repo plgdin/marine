@@ -63,6 +63,16 @@ export function MapContainer() {
       }
     } else {
       document.body.style.cursor = '';
+    }
+  }, [setSelectedVessel]);
+
+  const onClick = useCallback((event: MapMouseEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const features = (event as any).features;
+    const feature = features?.[0];
+    
+    // If we clicked the map but NOT a vessel, clear the selection
+    if (!feature || feature.layer?.id !== 'vessels-unclustered') {
       setSelectedVessel(null);
     }
   }, [setSelectedVessel]);
@@ -109,6 +119,7 @@ export function MapContainer() {
         onLoad={onLoad}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onMouseMove={onMouseMove as any}
+        onClick={onClick as any}
         onMouseLeave={() => {
           document.body.style.cursor = '';
           setSelectedVessel(null);
