@@ -8,6 +8,7 @@ const heatmapLayer: LayerProps = {
   id: 'vessels-heatmap',
   type: 'heatmap',
   source: 'vessels',
+  'source-layer': 'vessels', // Required for MVT
   maxzoom: 9,
   paint: {
     'heatmap-weight': 1,
@@ -33,6 +34,7 @@ const unclusteredLayer: LayerProps = {
   id: 'vessels-unclustered',
   type: 'symbol',
   source: 'vessels',
+  'source-layer': 'vessels', // Required for MVT
   layout: {
     'icon-image': 'vessel-arrow',
     'icon-size': [
@@ -44,8 +46,8 @@ const unclusteredLayer: LayerProps = {
     ],
     'icon-rotate': [
       'case',
-      ['>', ['get', 'course'], 0], ['get', 'course'],
-      ['get', 'heading'],
+      ['>', ['coalesce', ['get', 'course'], 0], 0], ['get', 'course'],
+      ['coalesce', ['get', 'heading'], 0]
     ],
     'icon-rotation-alignment': 'map',
     'icon-allow-overlap': true,
@@ -55,14 +57,20 @@ const unclusteredLayer: LayerProps = {
   paint: {
     'icon-color': [
       'match',
-      ['get', 'vesselType'],
-      'cargo',        '#2E7D32',   
-      'tanker',       '#C62828',   
+      ['get', 'vessel_type'],
+      'cargo', '#2E7D32',   
+      'tanker', '#C62828',   
       'bulk_carrier', '#BF360C',   
-      'passenger',    '#1565C0',   
-      'fishing',      '#6A1B9A',   
-      'tug',          '#E65100',   
-      'hsc',          '#00838F',   
+      'passenger', '#1565C0',   
+      'fishing', '#6A1B9A',   
+      'tug', '#E65100',   
+      'hsc', '#00838F',
+      'Cargo', '#2E7D32',
+      'Tanker', '#C62828',
+      'Passenger', '#1565C0',
+      'Fishing', '#6A1B9A',
+      'Special/Tug', '#E65100',
+      'High Speed Craft', '#00838F',
       '#455A64'                    
     ],
     'icon-halo-color': [
@@ -78,13 +86,24 @@ const unclusteredLayer: LayerProps = {
   },
 };
 
-const EMPTY_GEOJSON: any = { type: 'FeatureCollection', features: [] };
-
 export function VesselLayer() {
   const { showVessels, showHeatmap, showAisVessels, showGfwVessels, showTransparencyVessels, showVesselApiVessels } = useMapStore((s) => s.layers);
 
-  // Initialize the imperative sync bridge
+  // Initialize the imperative sync bridge for the popups and details!
   useMapSync();
+
+  const [tick, setTick] = useState(0);
+
+  // Auto-refresh the Vector Tiles every 5 seconds to simulate real-time radar sweep
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const baseUrl = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
+  const TILE_URL = `${baseUrl}/rest/v1/rpc/vessel_tiles?z={z}&x={x}&y={y}&tick=${tick}&apikey=${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
 
   // Create a dynamic filter array based on active source toggles
   const activeSources: any[] = [];
@@ -98,12 +117,12 @@ export function VesselLayer() {
   return (
     <Source
       id="vessels"
-      type="geojson"
-      data={EMPTY_GEOJSON}
-      cluster={false}
-      tolerance={0}
+      type="vector"
+      tiles={[TILE_URL]}
+      minzoom={2}
+      maxzoom={14}
     >
-      {showHeatmap && <Layer {...heatmapLayer} />}
+      {showHeatmap && <Layer {...heatmapLayer} filter={filterExpression} />}
       {showVessels && <Layer {...(unclusteredLayer as any)} filter={filterExpression} />}
     </Source>
   );
