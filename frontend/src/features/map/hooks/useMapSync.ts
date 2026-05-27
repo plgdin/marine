@@ -1,18 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
-import { positionsToGeoJson } from '../utils/geo.utils';
-import type { GeoJSONSource } from 'maplibre-gl';
 import { supabase } from '@/config/supabase';
 import { useOrgId } from '@/features/auth/stores/auth.store';
 
-/**
- * Imperative Synchronization Hook.
- * 
- * Bypasses React rendering entirely for vessel updates by pushing
- * directly to MapLibre WebGL canvas.
- * Now integrated with Supabase for data fetching and realtime subscription.
- */
 function parseEWKBPoint(hex: string): [number, number] {
   if (!hex || hex.length < 50) return [0, 0];
   const matches = hex.match(/[\da-f]{2}/gi);
@@ -25,16 +16,19 @@ function parseEWKBPoint(hex: string): [number, number] {
   return [lng, lat];
 }
 
+/**
+ * Imperative Synchronization Hook.
+ * 
+ * Subscribes to Supabase DB for vessel positions and writes them into the 
+ * high-performance Zustand mutable store so the Popup can read them.
+ * Map rendering is now handled natively by PostGIS Vector Tiles.
+ */
 export function useMapSync() {
-  const { current: map } = useMap();
-  const lastSyncRef = useRef<number>(0);
-  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastVersionRef = useRef<number>(0);
   const orgId = useOrgId();
 
   useEffect(() => {
     const fetchInitialState = async () => {
-      console.log(`[DEBUG] Fetching initial fleet positions... (orgId: ${orgId})`);
+      console.log(`[DEBUG] Fetching initial fleet positions for Popup state... (orgId: ${orgId})`);
       const { data, error } = await supabase
         .from('vessel_latest_positions')
         .select(`
@@ -128,70 +122,4 @@ export function useMapSync() {
       supabase.removeChannel(channel);
     };
   }, [orgId]);
-
-  // 2. High-Performance Bridge to MapLibre
-  useEffect(() => {
-    if (!map) return;
-    const mapInstance = map.getMap();
-
-    const pushToMap = () => {
-      if (!mapInstance || !mapInstance.isStyleLoaded()) return;
-      
-      lastSyncRef.current = Date.now();
-
-      const source = mapInstance.getSource('vessels') as GeoJSONSource;
-      if (source) {
-        try {
-          const positions = useRealtimeStore.getState().positions;
-          const geoJson = positionsToGeoJson(positions);
-          source.setData(geoJson);
-          console.log(`MapSync: Updated source with ${geoJson.features.length} vessels`);
-        } catch (err) {
-          console.error('MapSync: Error converting to GeoJSON', err);
-        }
-      }
-    };
-
-    const unsubscribe = useRealtimeStore.subscribe((state) => {
-      const version = state._positionVersion;
-      if (version === lastVersionRef.current) return;
-      
-      // If map isn't ready, don't mark this version as processed!
-      if (!mapInstance || !mapInstance.isStyleLoaded()) return;
-
-      lastVersionRef.current = version;
-      const now = Date.now();
-      
-      if (now - lastSyncRef.current < 500) {
-        if (!syncTimeoutRef.current) {
-          syncTimeoutRef.current = setTimeout(() => {
-            syncTimeoutRef.current = null;
-            pushToMap();
-          }, 500 - (now - lastSyncRef.current));
-        }
-        return;
-      }
-      
-      pushToMap();
-    });
-
-    // Attempt to push immediately if style is already loaded
-    if (mapInstance.isStyleLoaded()) {
-      pushToMap();
-    }
-    
-    // Attempt to push as soon as the style finishes loading
-    const handleStyleData = () => {
-      if (mapInstance.isStyleLoaded()) {
-        pushToMap();
-      }
-    };
-    mapInstance.on('styledata', handleStyleData);
-
-    return () => {
-      unsubscribe();
-      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-      mapInstance.off('styledata', handleStyleData);
-    };
-  }, [map]);
 }
