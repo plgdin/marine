@@ -129,15 +129,37 @@ export function useMapSync() {
     };
   }, [orgId]);
 
-  // 2. High-Performance Bridge to MapLibre (from dev3 logic)
+  // 2. High-Performance Bridge to MapLibre
   useEffect(() => {
     if (!map) return;
+    const mapInstance = map.getMap();
+
+    const pushToMap = () => {
+      if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+      
+      lastSyncRef.current = Date.now();
+
+      const source = mapInstance.getSource('vessels') as GeoJSONSource;
+      if (source) {
+        try {
+          const positions = useRealtimeStore.getState().positions;
+          const geoJson = positionsToGeoJson(positions);
+          source.setData(geoJson);
+          console.log(`MapSync: Updated source with ${geoJson.features.length} vessels`);
+        } catch (err) {
+          console.error('MapSync: Error converting to GeoJSON', err);
+        }
+      }
+    };
 
     const unsubscribe = useRealtimeStore.subscribe((state) => {
       const version = state._positionVersion;
       if (version === lastVersionRef.current) return;
-      lastVersionRef.current = version;
+      
+      // If map isn't ready, don't mark this version as processed!
+      if (!mapInstance || !mapInstance.isStyleLoaded()) return;
 
+      lastVersionRef.current = version;
       const now = Date.now();
       
       if (now - lastSyncRef.current < 500) {
@@ -153,29 +175,23 @@ export function useMapSync() {
       pushToMap();
     });
 
-    function pushToMap() {
-      lastSyncRef.current = Date.now();
-      
-      const mapInstance = map?.getMap();
-      if (!mapInstance || !mapInstance.isStyleLoaded()) {
-        return;
-      }
-
-      const source = mapInstance.getSource('vessels') as GeoJSONSource;
-      if (source) {
-        try {
-          const positions = useRealtimeStore.getState().positions;
-          const geoJson = positionsToGeoJson(positions);
-          source.setData(geoJson);
-        } catch (err) {
-          console.error('MapSync: Error converting to GeoJSON', err);
-        }
-      }
+    // Attempt to push immediately if style is already loaded
+    if (mapInstance.isStyleLoaded()) {
+      pushToMap();
     }
+    
+    // Attempt to push as soon as the style finishes loading
+    const handleStyleData = () => {
+      if (mapInstance.isStyleLoaded()) {
+        pushToMap();
+      }
+    };
+    mapInstance.on('styledata', handleStyleData);
 
     return () => {
       unsubscribe();
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      mapInstance.off('styledata', handleStyleData);
     };
   }, [map]);
 }
