@@ -13,6 +13,18 @@ import { useOrgId } from '@/features/auth/stores/auth.store';
  * directly to MapLibre WebGL canvas.
  * Now integrated with Supabase for data fetching and realtime subscription.
  */
+function parseEWKBPoint(hex: string): [number, number] {
+  if (!hex || hex.length < 50) return [0, 0];
+  const matches = hex.match(/[\da-f]{2}/gi);
+  if (!matches) return [0, 0];
+  const buffer = new Uint8Array(matches.map((h) => parseInt(h, 16)));
+  const view = new DataView(buffer.buffer);
+  const isLittleEndian = view.getUint8(0) === 1;
+  const lng = view.getFloat64(9, isLittleEndian);
+  const lat = view.getFloat64(17, isLittleEndian);
+  return [lng, lat];
+}
+
 export function useMapSync() {
   const { current: map } = useMap();
   const lastSyncRef = useRef<number>(0);
@@ -20,9 +32,7 @@ export function useMapSync() {
   const lastVersionRef = useRef<number>(0);
   const orgId = useOrgId();
 
-  // 1. Data Fetching & Subscribing (from alan/backend logic)
   useEffect(() => {
-    // 1a. FETCH INITIAL MAP STATE
     const fetchInitialState = async () => {
       console.log(`[DEBUG] Fetching initial fleet positions... (orgId: ${orgId})`);
       const { data, error } = await supabase
@@ -51,11 +61,7 @@ export function useMapSync() {
              lng = row.location.coordinates[0];
              lat = row.location.coordinates[1];
           } else if (typeof row.location === 'string') {
-             const match = row.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-             if (match) {
-               lng = parseFloat(match[1]);
-               lat = parseFloat(match[2]);
-             }
+             [lng, lat] = parseEWKBPoint(row.location);
           }
           
           useRealtimeStore.getState().upsertPosition({
@@ -79,7 +85,6 @@ export function useMapSync() {
 
     fetchInitialState();
 
-    // 1b. SUBSCRIBE TO LIVE DATABASE UPDATES
     const channelId = `mapsync-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     console.log("Connecting Supabase Realtime for MapSync...");
     const channel = supabase.channel(channelId)
@@ -99,11 +104,7 @@ export function useMapSync() {
              lng = row.location.coordinates[0];
              lat = row.location.coordinates[1];
           } else if (typeof row.location === 'string') {
-             const match = row.location.match(/POINT\(([^ ]+) ([^)]+)\)/);
-             if (match) {
-               lng = parseFloat(match[1]);
-               lat = parseFloat(match[2]);
-             }
+             [lng, lat] = parseEWKBPoint(row.location);
           }
           
           useRealtimeStore.getState().upsertPosition({
