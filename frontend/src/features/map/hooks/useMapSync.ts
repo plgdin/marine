@@ -80,8 +80,9 @@ export function useMapSync() {
     fetchInitialState();
 
     // 1b. SUBSCRIBE TO LIVE DATABASE UPDATES
+    const channelId = `mapsync-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     console.log("Connecting Supabase Realtime for MapSync...");
-    const channel = supabase.channel('mapsync:vessel_latest_positions')
+    const channel = supabase.channel(channelId)
       .on(
         'postgres_changes',
         {
