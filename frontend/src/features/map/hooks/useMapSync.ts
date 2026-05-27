@@ -29,7 +29,7 @@ export function useMapSync() {
 
       const now = Date.now();
       
-      // Additional throttle — max 2 updates per second to MapLibre
+      // Additional throttle - max 2 updates per second to MapLibre
       if (now - lastSyncRef.current < 500) {
         if (!syncTimeoutRef.current) {
           syncTimeoutRef.current = setTimeout(() => {

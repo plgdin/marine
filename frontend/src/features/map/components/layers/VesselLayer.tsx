@@ -1,8 +1,7 @@
 import { Source, Layer, type LayerProps } from 'react-map-gl/maplibre';
 import { useMapStore } from '../../stores/map.store';
 import { useMapSync } from '../../hooks/useMapSync';
-
-// ── Layer Styling Definitions ─────────────────────────────────
+import { useEffect, useState } from 'react';
 
 // 1. Heatmap (visible at lower zoom levels)
 const heatmapLayer: LayerProps = {
@@ -30,7 +29,6 @@ const heatmapLayer: LayerProps = {
 };
 
 // 2. Individual vessel arrows
-// Uses 'course' property = direction the vessel is actually MOVING
 const unclusteredLayer: LayerProps = {
   id: 'vessels-unclustered',
   type: 'symbol',
@@ -44,8 +42,6 @@ const unclusteredLayer: LayerProps = {
       10, 0.55,
       15, 0.7,
     ],
-    // Use 'course' (direction of movement) as the primary rotation,
-    // fallback to 'heading' if course is 0 (unavailable)
     'icon-rotate': [
       'case',
       ['>', ['get', 'course'], 0], ['get', 'course'],
@@ -60,29 +56,28 @@ const unclusteredLayer: LayerProps = {
     'icon-color': [
       'match',
       ['get', 'vesselType'],
-      'cargo',        '#2E7D32',   // Dark green
-      'tanker',       '#C62828',   // Deep red
-      'bulk_carrier', '#BF360C',   // Deep orange-red
-      'passenger',    '#1565C0',   // Dark blue
-      'fishing',      '#6A1B9A',   // Deep purple
-      'tug',          '#E65100',   // Burnt orange
-      'hsc',          '#00838F',   // Teal
-      '#455A64'                    // Blue-gray default
+      'cargo',        '#2E7D32',   
+      'tanker',       '#C62828',   
+      'bulk_carrier', '#BF360C',   
+      'passenger',    '#1565C0',   
+      'fishing',      '#6A1B9A',   
+      'tug',          '#E65100',   
+      'hsc',          '#00838F',   
+      '#455A64'                    
     ],
     'icon-halo-color': [
       'match',
       ['get', 'source'],
-      'transparency', '#00E5FF', // Cyan halo for open ocean / transparency API
-      'globalfishing', '#00E676', // Green halo for globalfishing
-      'api', '#FF4081', // Pink/Purple halo for VesselAPI
-      '#FFFFFF' // White halo for standard AIS
+      'transparency', '#00E5FF', 
+      'globalfishing', '#00E676', 
+      'api', '#FF4081', 
+      '#FFFFFF' 
     ],
     'icon-halo-width': 1.5,
     'icon-opacity': 0.9,
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const EMPTY_GEOJSON: any = { type: 'FeatureCollection', features: [] };
 
 export function VesselLayer() {
@@ -98,7 +93,6 @@ export function VesselLayer() {
   if (showTransparencyVessels) activeSources.push(['==', ['get', 'source'], 'transparency']);
   if (showVesselApiVessels) activeSources.push(['==', ['get', 'source'], 'api']);
 
-  // If no sources are active, use a filter that matches nothing, otherwise use 'any'
   const filterExpression = (activeSources.length > 0 ? ['any', ...activeSources] : ['==', 'id', 'nothing']) as any;
 
   return (

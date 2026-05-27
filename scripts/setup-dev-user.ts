@@ -31,6 +31,11 @@ async function setup() {
     .select('id')
     .eq('slug', 'ais-ingestion-org');
 
+  if (orgErr) {
+    console.error('❌ Failed to find org:', orgErr.message);
+    process.exit(1);
+  }
+
   let orgId = orgs?.[0]?.id;
 
   if (!orgId) {
@@ -40,8 +45,8 @@ async function setup() {
       .select('id')
       .single();
     
-    if (newOrgErr) {
-      console.error('❌ Failed to create org:', newOrgErr.message);
+    if (newOrgErr || !newOrg) {
+      console.error('❌ Failed to create org:', newOrgErr?.message);
       process.exit(1);
     }
     orgId = newOrg.id;
@@ -53,7 +58,12 @@ async function setup() {
   let userId: string;
   const { data: userList, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
   
-  const existingUser = userList?.users.find(u => u.email === EMAIL);
+  if (listErr) {
+    console.error('❌ Failed to list users:', listErr.message);
+    process.exit(1);
+  }
+
+  const existingUser = userList?.users.find((u: any) => u.email === EMAIL);
 
   if (existingUser) {
     userId = existingUser.id;
@@ -66,7 +76,7 @@ async function setup() {
       user_metadata: { full_name: 'System Admin' }
     });
 
-    if (createErr || !newUser.user) {
+    if (createErr || !newUser?.user) {
       console.error('❌ Failed to create user:', createErr?.message);
       process.exit(1);
     }
