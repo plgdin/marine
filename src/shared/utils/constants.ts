@@ -39,6 +39,7 @@ export const POSITION = {
 // ── Vessel ───────────────────────────────
 export const VESSEL_TYPE_LABELS: Record<string, string> = {
   cargo:     'Cargo',
+  bulk_carrier: 'Bulk Carrier',
   tanker:    'Tanker',
   passenger: 'Passenger',
   fishing:   'Fishing',
@@ -46,6 +47,8 @@ export const VESSEL_TYPE_LABELS: Record<string, string> = {
   pleasure:  'Pleasure Craft',
   military:  'Military',
   sailing:   'Sailing',
+  hsc:       'High-Speed Craft',
+  wig:       'WIG',
   other:     'Other',
 };
 

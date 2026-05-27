@@ -4,10 +4,12 @@ import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { useMemo } from 'react';
 import { getVesselMetadata } from '@shared/services/aisstream.service';
 import { useMapStore } from '../../map/stores/map.store';
+import { useNavigate } from 'react-router-dom';
 
 export default function VesselsPage() {
-  const _positionVersion = useRealtimeStore((s: any) => s._positionVersion);
-  const layers = useMapStore((s: any) => s.layers);
+  const navigate = useNavigate();
+  const _positionVersion = useRealtimeStore((s) => s._positionVersion);
+  const layers = useMapStore((s) => s.layers);
   
   const vessels = useMemo(() => {
     const positions = useRealtimeStore.getState().positions;
@@ -23,7 +25,7 @@ export default function VesselsPage() {
         const meta = getVesselMetadata(pos.vesselId);
         return {
           ...pos,
-          name: meta?.name || 'Unknown',
+          name: pos.name || meta?.name || 'Unknown',
           type: meta?.vesselType || 'other',
           destination: meta?.destination || 'N/A'
         };
@@ -64,7 +66,12 @@ export default function VesselsPage() {
             </thead>
             <tbody className="divide-y" style={{ '--tw-divide-color': 'var(--color-border-subtle)' } as React.CSSProperties}>
               {vessels.slice(0, 100).map((vessel) => (
-                <tr key={vessel.id} className="hover:bg-opacity-50 transition-colors" style={{ color: 'var(--color-text-secondary)' }}>
+                <tr
+                  key={vessel.id}
+                  className="hover:bg-opacity-50 transition-colors cursor-pointer"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                  onClick={() => navigate(`/app/vessels/${vessel.vesselId}`)}
+                >
                   <td className="px-6 py-4 whitespace-nowrap font-medium" style={{ color: 'var(--color-text-primary)' }}>
                     <div className="flex items-center gap-2">
                       <Ship size={14} className="text-accent-cyan" />

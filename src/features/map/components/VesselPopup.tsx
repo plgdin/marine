@@ -258,7 +258,7 @@ export function VesselPopup() {
           <div className="bg-slate-800/40 rounded p-1.5 border border-white/5">
             <div className="text-slate-400 text-[9px] leading-none uppercase tracking-wider font-semibold">Draught</div>
             <div className="font-bold text-slate-200 text-[11px] leading-tight mt-1">
-              {(metadata as any)?.draught ? `${(metadata as any).draught}m` : '11m'}
+              {metadata?.draughtM != null ? `${metadata.draughtM.toFixed(1)} m` : '—'}
             </div>
           </div>
         </div>

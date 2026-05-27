@@ -1,7 +1,5 @@
-import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns';
+import { format, formatDistanceToNow, isValid, parseISO } from 'date-fns';
 import { DATE_FORMATS, NAV_STATUS_LABELS, VESSEL_TYPE_LABELS } from './constants';
-
-// ── Date / Time ──────────────────────────────────────────────
 
 /** Format an ISO string for display: "May 21, 2026" */
 export function formatDate(iso: string | null | undefined): string {
@@ -30,8 +28,6 @@ export function formatRelative(iso: string | null | undefined): string {
   const d = parseISO(iso);
   return isValid(d) ? formatDistanceToNow(d, { addSuffix: true }) : '—';
 }
-
-// ── Numbers ──────────────────────────────────────────────────
 
 /** Format a speed in knots: "12.4 kn" */
 export function formatSpeed(knots: number | null | undefined): string {
@@ -67,8 +63,6 @@ export function formatNumber(n: number | null | undefined, decimals = 0): string
   });
 }
 
-// ── Coordinates ──────────────────────────────────────────────
-
 /** Format lat/lng in decimal degrees: "12.3456°N, 45.6789°E" */
 export function formatCoordinates(
   lat: number | null | undefined,
@@ -79,8 +73,6 @@ export function formatCoordinates(
   const lngDir = lng >= 0 ? 'E' : 'W';
   return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lng).toFixed(4)}°${lngDir}`;
 }
-
-// ── Labels ───────────────────────────────────────────────────
 
 export function formatNavStatus(status: string | null | undefined): string {
   if (!status) return '—';
@@ -99,8 +91,6 @@ export function formatLabel(str: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// ── String ───────────────────────────────────────────────────
-
 /** Truncate a string with ellipsis */
 export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str;
@@ -112,3 +102,4 @@ export function formatMMSI(mmsi: string | null | undefined): string {
   if (!mmsi) return '—';
   return mmsi.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
 }
+

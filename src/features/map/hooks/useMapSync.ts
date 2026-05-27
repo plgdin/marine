@@ -44,8 +44,6 @@ export function useMapSync() {
     });
 
     function pushToMap() {
-      lastSyncRef.current = Date.now();
-      
       const mapInstance = map?.getMap();
       if (!mapInstance || !mapInstance.isStyleLoaded()) {
         return;
@@ -57,7 +55,8 @@ export function useMapSync() {
           const positions = useRealtimeStore.getState().positions;
           const geoJson = positionsToGeoJson(positions);
           source.setData(geoJson);
-          console.log(`MapSync: Updated source with ${geoJson.features.length} vessels`);
+          lastSyncRef.current = Date.now();
+          // console.log(`MapSync: Updated source with ${geoJson.features.length} vessels`);
         } catch (err) {
           console.error('MapSync: Error converting to GeoJSON', err);
         }

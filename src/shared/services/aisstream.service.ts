@@ -25,12 +25,15 @@ export interface AISStreamPositionReport {
 
 export interface AISStreamShipStaticData {
   Name: string;
-  Imo: number;
+  // AISStream docs use ImoNumber + MaximumStaticDraught, but some payloads include older aliases too.
+  Imo?: number;
+  ImoNumber?: number;
   CallSign: string;
   Type: number;
   Destination: string;
   Eta: { Month: number; Day: number; Hour: number; Minute: number };
-  Draught: number;
+  MaximumStaticDraught?: number;
+  Draught?: number;
   Dimension: {
     A: number;
     B: number;
@@ -66,6 +69,11 @@ const AIS_NAV_STATUS_MAP: Record<number, string> = {
   6: 'aground',
   7: 'fishing',
   8: 'sailing',
+  9: 'restricted',
+  10: 'restricted',
+  11: 'restricted',
+  12: 'restricted',
+  13: 'restricted',
   14: 'unknown',
   15: 'unknown',
 };
@@ -110,9 +118,28 @@ export interface VesselMetadata {
   shipType: number;
   vesselType: string;   // Resolved category: 'cargo' | 'tanker' | 'bulk_carrier' | etc.
   destination: string | null;
+  etaIso: string | null;
+  draughtM: number | null;
+  dimension: { A: number; B: number; C: number; D: number } | null;
+  lengthOverallM: number | null;
+  beamM: number | null;
+  lastStaticUpdateIso: string | null;
 }
 
 const vesselMetadataCache = new Map<string, VesselMetadata>();
+
+type VesselAisStats = {
+  positionCount: number;
+  lastPositionIso: string | null;
+  lastIntervalSec: number | null;
+  avgIntervalSec: number | null;
+};
+
+const vesselAisStatsCache = new Map<string, {
+  positionCount: number;
+  lastPosMs: number | null;
+  intervalsSec: number[];
+}>();
 
 export function getVesselMetadata(mmsi: string): VesselMetadata | undefined {
   return vesselMetadataCache.get(mmsi);
@@ -122,9 +149,40 @@ export function getAllVesselMetadata(): Map<string, VesselMetadata> {
   return vesselMetadataCache;
 }
 
+export function getVesselAisStats(mmsi: string): VesselAisStats | null {
+  const s = vesselAisStatsCache.get(mmsi);
+  if (!s) return null;
+  const lastIntervalSec = s.intervalsSec.length > 0 ? s.intervalsSec[s.intervalsSec.length - 1] : null;
+  const avgIntervalSec = s.intervalsSec.length > 0
+    ? s.intervalsSec.reduce((a, b) => a + b, 0) / s.intervalsSec.length
+    : null;
+
+  return {
+    positionCount: s.positionCount,
+    lastPositionIso: s.lastPosMs ? new Date(s.lastPosMs).toISOString() : null,
+    lastIntervalSec,
+    avgIntervalSec,
+  };
+}
+
 // ── AIS Stream Service ─────────────────────────────────────────
 
 const AISSTREAM_WS_URL = 'wss://stream.aisstream.io/v0/stream';
+
+function computeEtaIso(eta: AISStreamShipStaticData['Eta'] | undefined): string | null {
+  if (!eta) return null;
+  const { Month, Day, Hour, Minute } = eta;
+  if (!Month || !Day) return null;
+
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  // AIS ETA lacks year; pick the next occurrence in UTC.
+  const guess = new Date(Date.UTC(year, Month - 1, Day, Hour ?? 0, Minute ?? 0, 0));
+  if (guess.getTime() < now.getTime() - 12 * 60 * 60 * 1000) {
+    guess.setUTCFullYear(year + 1);
+  }
+  return guess.toISOString();
+}
 
 class AISStreamService {
   private ws: WebSocket | null = null;
@@ -186,7 +244,7 @@ class AISStreamService {
 
       this.ws.onmessage = async (event: MessageEvent) => {
         try {
-          // AISStream sends data as Blob — convert to text first
+          // AISStream sends data as Blob - convert to text first
           const raw = event.data instanceof Blob
             ? await event.data.text()
             : event.data;
@@ -238,7 +296,7 @@ class AISStreamService {
   }
 
   /**
-   * Process a PositionReport message → update vessel position on map.
+   * Process a PositionReport message -> update vessel position on map.
    */
   private handlePositionReport(mmsi: string, data: AISStreamMessage) {
     const report = data.Message.PositionReport!;
@@ -270,6 +328,12 @@ class AISStreamService {
         shipType: 0,
         vesselType: mapAISShipType(0, name),
         destination: null,
+        etaIso: null,
+        draughtM: null,
+        dimension: null,
+        lengthOverallM: null,
+        beamM: null,
+        lastStaticUpdateIso: null,
       });
     }
 
@@ -287,25 +351,60 @@ class AISStreamService {
       source: 'ais',
     };
 
+    // Lightweight per-vessel stats for detail views.
+    const nowMs = Date.now();
+    const prev = vesselAisStatsCache.get(mmsi);
+    if (!prev) {
+      vesselAisStatsCache.set(mmsi, { positionCount: 1, lastPosMs: nowMs, intervalsSec: [] });
+    } else {
+      const dtSec = prev.lastPosMs ? Math.max(0, (nowMs - prev.lastPosMs) / 1000) : 0;
+      const nextIntervals = dtSec > 0 ? [...prev.intervalsSec, dtSec].slice(-60) : prev.intervalsSec;
+      vesselAisStatsCache.set(mmsi, {
+        positionCount: prev.positionCount + 1,
+        lastPosMs: nowMs,
+        intervalsSec: nextIntervals,
+      });
+    }
+
     useRealtimeStore.getState().upsertPosition(pos);
   }
 
   /**
-   * Process ShipStaticData → cache vessel metadata.
+   * Process ShipStaticData -> cache vessel metadata.
    */
   private handleShipStaticData(mmsi: string, data: AISStreamMessage) {
     const staticData = data.Message.ShipStaticData!;
     const name = (staticData.Name || data.MetaData.ShipName || '').trim();
     const typeCode = staticData.Type ?? 0;
+
+    const imoNumber = staticData.Imo ?? staticData.ImoNumber ?? 0;
+    const dim = staticData.Dimension
+      ? {
+          A: Number(staticData.Dimension.A ?? 0),
+          B: Number(staticData.Dimension.B ?? 0),
+          C: Number(staticData.Dimension.C ?? 0),
+          D: Number(staticData.Dimension.D ?? 0),
+        }
+      : null;
+    const lengthOverallM = dim ? dim.A + dim.B : null;
+    const beamM = dim ? dim.C + dim.D : null;
+    const draughtRaw = staticData.MaximumStaticDraught ?? staticData.Draught ?? null;
+    const draughtM = draughtRaw == null ? null : Number(draughtRaw);
     
     vesselMetadataCache.set(mmsi, {
       name,
       mmsi,
-      imo: staticData.Imo ? String(staticData.Imo) : null,
+      imo: imoNumber ? String(imoNumber) : null,
       callSign: staticData.CallSign?.trim() || null,
       shipType: typeCode,
       vesselType: mapAISShipType(typeCode, name),
       destination: staticData.Destination?.trim() || null,
+      etaIso: computeEtaIso(staticData.Eta),
+      draughtM,
+      dimension: dim,
+      lengthOverallM,
+      beamM,
+      lastStaticUpdateIso: new Date().toISOString(),
     });
   }
 
