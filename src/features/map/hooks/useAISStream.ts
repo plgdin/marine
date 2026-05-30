@@ -17,9 +17,11 @@ export interface AISStreamStats {
  */
 export function useAISStream(options?: {
   boundingBoxes?: [number, number][][];
+  filtersShipMmsi?: string[];
   enabled?: boolean;
 }) {
-  const { boundingBoxes, enabled = true } = options ?? {};
+  const { boundingBoxes, filtersShipMmsi, enabled = true } = options ?? {};
+  const filtersKey = filtersShipMmsi?.join(',') || '';
   const connectedRef = useRef(false);
   const [stats, setStats] = useState<AISStreamStats>({
     isConnected: false,
@@ -49,6 +51,7 @@ export function useAISStream(options?: {
     aisStreamService.configure({
       apiKey,
       boundingBoxes: boundingBoxes ?? [[[-90, -180], [90, 180]]],
+      filtersShipMmsi,
       onStatsUpdate: updateStats,
     });
 
@@ -73,7 +76,7 @@ export function useAISStream(options?: {
       connectedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, updateStats]); // intentionally omit boundingBoxes to avoid reconnect on every change
+  }, [enabled, updateStats, filtersKey]); // intentionally omit boundingBoxes to avoid reconnect on every change
 
   // Handle bounding box updates separately (without full reconnect)
   useEffect(() => {

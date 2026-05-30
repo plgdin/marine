@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CalendarClock, Compass, Gauge, Info, Radio, Ship, Waypoints } from 'lucide-react';
 import { VesselCharacteristicsTab } from '../components/VesselCharacteristicsTab';
+import { buildVesselSpecs } from '../utils/vessel-specs';
 
+import { useAISStream } from '@features/map/hooks/useAISStream';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { getVesselAisStats, getVesselMetadata } from '@shared/services/aisstream.service';
 import { gfwService, type GfwEventsResponse, type GfwInsightsResponse, type GfwVesselIdentity } from '@shared/services/gfw.service';
@@ -76,6 +78,9 @@ export default function VesselDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState<VesselDetailTab>('overview');
+
+  // Connect to live AIS feed specifically for this vessel
+  useAISStream({ filtersShipMmsi: id ? [id] : undefined });
 
   const _positionVersion = useRealtimeStore((s) => s._positionVersion);
   const pos = useRealtimeStore((s) => (id ? s.positions.get(id) : undefined));
@@ -314,12 +319,14 @@ export default function VesselDetailPage() {
     }
   };
 
-  // Resolve vessel name: prefer AIS metadata, then GFW (from all possible sources), fallback to MMSI
-  const shipName = meta?.name || pos?.name || gfwName || 'Unknown Vessel';
-  const vesselType = meta?.vesselType ? formatVesselType(meta.vesselType) : (gfwVessel?.combinedSourcesInfo?.[0]?.shiptypes?.[0]?.name || '—');
-  const imoNumber = meta?.imo || gfwImo || null;
-  const callSign = meta?.callSign || gfwCallSign || null;
-  const flagState = gfwFlag || null;
+  // Resolve vessel name: prefer AIS metadata, then GFW (from all possible sources), fallback to stable mock
+  const specs = useMemo(() => buildVesselSpecs(meta, gfwVessel, id), [meta, gfwVessel, id]);
+
+  const shipName = specs.name || 'Unknown Vessel';
+  const vesselType = specs.vesselTypeName ? formatVesselType(specs.vesselTypeName) : '—';
+  const imoNumber = specs.imo;
+  const callSign = specs.callSign;
+  const flagState = specs.flag;
 
   const lastSeen = pos?.timestamp ? formatRelative(pos.timestamp) : '—';
   const lastSeenExact = pos?.timestamp ? formatDateTime(pos.timestamp) : '—';

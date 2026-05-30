@@ -191,6 +191,7 @@ class AISStreamService {
   private attempt = 0;
   private apiKey: string = '';
   private boundingBoxes: [number, number][][] = [[[-90, -180], [90, 180]]];
+  private filtersShipMmsi?: string[];
   private messageCount = 0;
   private onStatsUpdate?: (count: number) => void;
 
@@ -200,11 +201,17 @@ class AISStreamService {
   public configure(options: {
     apiKey: string;
     boundingBoxes?: [number, number][][];
+    filtersShipMmsi?: string[];
     onStatsUpdate?: (count: number) => void;
   }) {
     this.apiKey = options.apiKey;
     if (options.boundingBoxes) {
       this.boundingBoxes = options.boundingBoxes;
+    }
+    if (options.filtersShipMmsi) {
+      this.filtersShipMmsi = options.filtersShipMmsi;
+    } else {
+      this.filtersShipMmsi = undefined;
     }
     this.onStatsUpdate = options.onStatsUpdate;
   }
@@ -233,6 +240,10 @@ class AISStreamService {
           BoundingBoxes: this.boundingBoxes,
           FilterMessageTypes: ['PositionReport', 'ShipStaticData'],
         };
+
+        if (this.filtersShipMmsi && this.filtersShipMmsi.length > 0) {
+          subscription.FiltersShipMMSI = this.filtersShipMmsi;
+        }
 
         this.ws?.send(JSON.stringify(subscription));
         

@@ -107,7 +107,7 @@ export function VesselCharacteristicsTab({
   gfwVessel,
   gfwLoading,
 }: VesselCharacteristicsTabProps) {
-  const specs = useMemo(() => buildVesselSpecs(aisMeta, gfwVessel), [aisMeta, gfwVessel]);
+  const specs = useMemo(() => buildVesselSpecs(aisMeta, gfwVessel, vesselId), [aisMeta, gfwVessel, vesselId]);
 
   if (gfwLoading) {
     return (
