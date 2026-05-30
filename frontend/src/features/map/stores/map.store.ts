@@ -24,13 +24,17 @@ export interface MapLayerState {
 interface MapStore {
   viewport: ViewportState;
   layers: MapLayerState;
+  mapBounds: [number, number, number, number] | null; // [minLng, minLat, maxLng, maxLat]
   selectedVesselId: string | null;
   playbackTimestamp: number | null; // null means live mode
+  vesselCount: number;
 
   setViewport: (viewport: Partial<ViewportState>) => void;
   toggleLayer: (layer: keyof MapLayerState) => void;
   setSelectedVessel: (id: string | null) => void;
   setPlaybackTimestamp: (timestamp: number | null) => void;
+  setVesselCount: (count: number) => void;
+  setMapBounds: (bounds: [number, number, number, number] | null) => void;
 }
 
 const DEFAULT_VIEWPORT: ViewportState = {
@@ -58,8 +62,10 @@ export const useMapStore = create<MapStore>()(
     (set) => ({
       viewport: DEFAULT_VIEWPORT,
       layers: DEFAULT_LAYERS,
+      mapBounds: null,
       selectedVesselId: null,
       playbackTimestamp: null,
+      vesselCount: 0,
 
       setViewport: (viewport) =>
         set((state) => ({
@@ -76,6 +82,8 @@ export const useMapStore = create<MapStore>()(
 
       setSelectedVessel: (id) => set({ selectedVesselId: id }),
       setPlaybackTimestamp: (ts) => set({ playbackTimestamp: ts }),
+      setVesselCount: (count) => set({ vesselCount: count }),
+      setMapBounds: (bounds) => set({ mapBounds: bounds }),
     }),
     {
       name: 'marinetrack-map-store',

@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { useMap } from 'react-map-gl/maplibre';
+import { useEffect } from 'react';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
+import { useMapStore } from '@/features/map/stores/map.store';
 import { supabase } from '@/config/supabase';
 import { useOrgId } from '@/features/auth/stores/auth.store';
 
@@ -17,11 +17,10 @@ function parseEWKBPoint(hex: string): [number, number] {
 }
 
 /**
- * Imperative Synchronization Hook.
- * 
- * Subscribes to Supabase DB for vessel positions and writes them into the 
- * high-performance Zustand mutable store so the Popup can read them.
- * Map rendering is now handled natively by PostGIS Vector Tiles.
+ * Syncs the initial map state for vessels.
+ * Note: Realtime global streaming for 58k vessels has been disabled
+ * to prevent exhausting the 2,000,000 msg/month Supabase Realtime quota.
+ * Map rendering is handled by high-performance Vector Tiles.
  */
 export function useMapSync() {
   const orgId = useOrgId();
@@ -41,7 +40,16 @@ export function useMapSync() {
           nav_status,
           vessels ( name, mmsi, vessel_type )
         `)
-        .limit(2000);
+        .limit(2000); // Limit to top 2000 to prevent heavy client loads on boot
+
+      // Fetch the global vessel count to update the UI
+      const { count } = await supabase
+        .from('vessel_latest_positions')
+        .select('*', { count: 'exact', head: true });
+
+      if (count !== null) {
+        useMapStore.getState().setVesselCount(count);
+      }
 
       if (error) {
         console.error('[DEBUG] Failed to load ships from DB:', error);
@@ -79,47 +87,8 @@ export function useMapSync() {
 
     fetchInitialState();
 
-    const channelId = `mapsync-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    console.log("Connecting Supabase Realtime for MapSync...");
-    const channel = supabase.channel(channelId)
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to INSERT and UPDATE
-          schema: 'public',
-          table: 'vessel_latest_positions'
-        },
-        (payload) => {
-          const row = payload.new as any;
-          if (!row || !row.vessel_id) return;
-          
-          let lat = 0, lng = 0;
-          if (row.location?.coordinates) {
-             lng = row.location.coordinates[0];
-             lat = row.location.coordinates[1];
-          } else if (typeof row.location === 'string') {
-             [lng, lat] = parseEWKBPoint(row.location);
-          }
-          
-          useRealtimeStore.getState().upsertPosition({
-            id: row.vessel_id,
-            vesselId: row.vessel_id,
-            orgId: orgId || 'demo',
-            location: { lat, lng },
-            heading: row.heading,
-            course: row.course,
-            speed: row.speed,
-            navStatus: row.nav_status || 'underway',
-            rot: null,
-            timestamp: new Date().toISOString(),
-            source: row.source || 'ais'
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // The supabase.channel('mapsync') Realtime subscription was removed here
+    // because streaming 58,000 constantly moving global AIS vessels over WebSockets
+    // exhausts Supabase free-tier quotas and crashes client browsers.
   }, [orgId]);
 }

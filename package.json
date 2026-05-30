@@ -6,5 +6,9 @@
     "build": "npx pnpm -r build",
     "start:engine": "npx pnpm -C ingestion-engine start",
     "dev:frontend": "npx pnpm -C frontend dev"
+  },
+  "dependencies": {
+    "@mapbox/vector-tile": "^3.0.0",
+    "pbf": "^5.1.0"
   }
 }
