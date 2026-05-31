@@ -6,9 +6,22 @@ export interface VesselMetadata {
   shipType: number;
   vesselType: string;
   destination: string | null;
+  etaIso?: string;
+  draughtM?: number;
+  lengthOverallM?: number;
+  beamM?: number;
+  lastStaticUpdateIso?: string;
+}
+
+export interface AisStats {
+  positionCount: number;
+  avgIntervalSec: number;
+  lastIntervalSec: number;
+  lastPositionIso: string | null;
 }
 
 const vesselMetadataCache = new Map<string, VesselMetadata>();
+const statsCache = new Map<string, AisStats>();
 
 export function getVesselMetadata(mmsi: string): VesselMetadata | undefined {
   return vesselMetadataCache.get(mmsi);
@@ -16,6 +29,10 @@ export function getVesselMetadata(mmsi: string): VesselMetadata | undefined {
 
 export function getAllVesselMetadata(): Map<string, VesselMetadata> {
   return vesselMetadataCache;
+}
+
+export function getVesselAisStats(mmsi: string): AisStats | undefined {
+  return statsCache.get(mmsi);
 }
 
 export function mapAISShipType(typeCode: number, name?: string): string {

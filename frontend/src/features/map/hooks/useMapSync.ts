@@ -78,7 +78,8 @@ export function useMapSync() {
             rot: null,
             timestamp: new Date().toISOString(),
             source: row.source || 'ais',
-            name: row.vessels?.name || undefined
+            name: row.vessels?.name || undefined,
+            mmsi: row.vessels?.mmsi || undefined
           });
         });
         console.log(`[DEBUG] Loaded ${data.length} ships into Realtime Store.`);

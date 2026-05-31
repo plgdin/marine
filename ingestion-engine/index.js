@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import http from 'http';
 
-dotenv.config();
+dotenv.config({ path: '.env.local' });
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -54,11 +54,24 @@ async function startEngine() {
   const { data: org, error: orgErr } = await supabase
     .from('organizations').select('id').eq('slug', 'ais-ingestion-org').single();
 
+  let targetOrgId;
   if (orgErr || !org) {
-    console.error('CRITICAL: Could not find "ais-ingestion-org" org.');
-    process.exit(1);
+    console.log('Ingestion org not found. Creating it now...');
+    const { data: newOrg, error: insertErr } = await supabase
+      .from('organizations')
+      .insert({ name: 'AIS Ingestion', slug: 'ais-ingestion-org' })
+      .select('id')
+      .single();
+      
+    if (insertErr || !newOrg) {
+      console.error('CRITICAL: Failed to create "ais-ingestion-org".', insertErr);
+      process.exit(1);
+    }
+    targetOrgId = newOrg.id;
+  } else {
+    targetOrgId = org.id;
   }
-  const targetOrgId = org.id;
+  
   console.log(`Target Org Locked: ${targetOrgId}`);
 
   // BULK FLUSH LOOP
@@ -79,7 +92,9 @@ async function startEngine() {
           .upsert(vesselsToUpsert, { onConflict: 'org_id, mmsi' })
           .select('mmsi, id');
         
-        if (!error && data) {
+        if (error) {
+          console.error('[DB] Upsert error for vessels:', error);
+        } else if (data) {
           // Cache UUIDs in local memory so we don't query DB
           data.forEach(v => fleetCache.set(v.mmsi, v.id));
           console.log(`[DB] Upserted & Cached ${data.length} vessel profiles`);
@@ -99,7 +114,11 @@ async function startEngine() {
           .from('vessel_latest_positions')
           .upsert(posToUpsert);
         
-        if (!error) console.log(`[DB] Flushed ${posToUpsert.length} live positions globally`);
+        if (error) {
+          console.error('[DB] Upsert error for positions:', error);
+        } else {
+          console.log(`[DB] Flushed ${posToUpsert.length} live positions globally`);
+        }
       } catch (e) {
         console.error("[DB] Position Bulk Upsert Exception:", e);
       }
@@ -111,7 +130,7 @@ async function startEngine() {
   ws.on('open', () => {
     console.log('Connected to AISStream Firehose...');
     const subscription = {
-      Apikey: process.env.AISSTREAM_API_KEY,
+      Apikey: process.env.AISSTREAM_API_KEY || process.env.VITE_AISSTREAM_API_KEY,
       BoundingBoxes: [[[-90, -180], [90, 180]]], 
       FilterMessageTypes: ["PositionReport", "ShipStaticData"]
     };

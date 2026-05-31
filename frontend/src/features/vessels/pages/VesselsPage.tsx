@@ -27,7 +27,8 @@ export default function VesselsPage() {
           ...pos,
           name: pos.name || meta?.name || 'Unknown',
           type: meta?.vesselType || 'other',
-          destination: meta?.destination || 'N/A'
+          destination: meta?.destination || 'N/A',
+          mmsi: pos.mmsi || meta?.mmsi
         };
       })
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
@@ -78,7 +79,7 @@ export default function VesselsPage() {
                       {vessel.name}
                     </div>
                   </td>
-                  <td className="px-6 py-4">{vessel.vesselId}</td>
+                  <td className="px-6 py-4 font-mono text-xs">{vessel.mmsi || vessel.vesselId.split('-')[0]}</td>
                   <td className="px-6 py-4 capitalize">{vessel.type.replace('_', ' ')}</td>
                   <td className="px-6 py-4">
                     <span className="px-2 py-1 rounded-full text-xs" style={{ background: 'var(--color-surface-overlay)' }}>

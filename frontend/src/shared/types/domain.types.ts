@@ -73,6 +73,7 @@ export interface VesselPosition {
   timestamp: string;
   source:    'ais' | 'manual' | 'api' | 'transparency' | 'globalfishing';
   name?:     string;
+  mmsi?:     string;
 }
 
 export interface VesselWithPosition extends Vessel {

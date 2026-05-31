@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CalendarClock, Compass, Gauge, Info, Radio, Ship, Waypoints } from 'lucide-react';
-import { VesselCharacteristicsTab } from '../components/VesselCharacteristicsTab';
-import { buildVesselSpecs } from '../utils/vessel-specs';
 
-import { useAISStream } from '@features/map/hooks/useAISStream';
+
+
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { getVesselAisStats, getVesselMetadata } from '@shared/services/aisstream.service';
 import { gfwService, type GfwEventsResponse, type GfwInsightsResponse, type GfwVesselIdentity } from '@shared/services/gfw.service';
@@ -79,8 +78,7 @@ export default function VesselDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState<VesselDetailTab>('overview');
 
-  // Connect to live AIS feed specifically for this vessel
-  useAISStream({ filtersShipMmsi: id ? [id] : undefined });
+  // Live AIS subscription is now handled by the local ingestion engine
 
   const _positionVersion = useRealtimeStore((s) => s._positionVersion);
   const pos = useRealtimeStore((s) => (id ? s.positions.get(id) : undefined));
@@ -319,10 +317,18 @@ export default function VesselDetailPage() {
     }
   };
 
-  // Resolve vessel name: prefer AIS metadata, then GFW (from all possible sources), fallback to stable mock
-  const specs = useMemo(() => buildVesselSpecs(meta, gfwVessel, id), [meta, gfwVessel, id]);
+  // Resolve vessel name: basic fallback since utils are missing
+  const specs = useMemo(() => {
+    return {
+      name: meta?.name || 'Unknown Vessel',
+      imo: meta?.imo,
+      callSign: meta?.callSign,
+      flag: meta?.flag,
+      vesselTypeName: meta?.vesselType,
+    };
+  }, [meta, id]);
 
-  const shipName = specs.name || 'Unknown Vessel';
+  const shipName = pos?.name || specs.name || 'Unknown Vessel';
   const vesselType = specs.vesselTypeName ? formatVesselType(specs.vesselTypeName) : '—';
   const imoNumber = specs.imo;
   const callSign = specs.callSign;
@@ -373,7 +379,7 @@ export default function VesselDetailPage() {
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-secondary">
                   <span className="truncate">{vesselType}</span>
                   <span className="text-text-tertiary">•</span>
-                  <span>MMSI: {formatMMSI(id)}</span>
+                  <span>MMSI: {formatMMSI(pos?.mmsi || id)}</span>
                   {imoNumber && (
                     <>
                       <span className="text-text-tertiary">•</span>
@@ -641,12 +647,9 @@ export default function VesselDetailPage() {
       )}
 
       {tab === 'characteristics' && (
-        <VesselCharacteristicsTab
-          vesselId={id}
-          aisMeta={meta}
-          gfwVessel={gfwVessel}
-          gfwLoading={gfwLoading}
-        />
+        <div className="p-4 text-center text-text-secondary border border-border-subtle rounded-xl">
+          Characteristics data not available.
+        </div>
       )}
 
       {tab === 'port-calls' && (

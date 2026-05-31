@@ -30,34 +30,44 @@ export function formatRelative(iso: string | null | undefined): string {
 }
 
 /** Format a speed in knots: "12.4 kn" */
-export function formatSpeed(knots: number | null | undefined): string {
+export function formatSpeed(knots: number | string | null | undefined): string {
   if (knots == null) return '—';
-  return `${knots.toFixed(1)} kn`;
+  const num = Number(knots);
+  if (isNaN(num)) return '—';
+  return `${num.toFixed(1)} kn`;
 }
 
 /** Format distance in nautical miles */
-export function formatDistance(nm: number | null | undefined): string {
+export function formatDistance(nm: number | string | null | undefined): string {
   if (nm == null) return '—';
-  if (nm >= 1000) return `${(nm / 1000).toFixed(1)}K nm`;
-  return `${nm.toFixed(0)} nm`;
+  const num = Number(nm);
+  if (isNaN(num)) return '—';
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K nm`;
+  return `${num.toFixed(0)} nm`;
 }
 
 /** Format a heading/course in degrees: "270°" */
-export function formatHeading(deg: number | null | undefined): string {
+export function formatHeading(deg: number | string | null | undefined): string {
   if (deg == null) return '—';
-  return `${Math.round(deg)}°`;
+  const num = Number(deg);
+  if (isNaN(num)) return '—';
+  return `${Math.round(num)}°`;
 }
 
 /** Format tonnage with locale separators: "45,230 GT" */
-export function formatTonnage(gt: number | null | undefined): string {
+export function formatTonnage(gt: number | string | null | undefined): string {
   if (gt == null) return '—';
-  return `${gt.toLocaleString()} GT`;
+  const num = Number(gt);
+  if (isNaN(num)) return '—';
+  return `${num.toLocaleString()} GT`;
 }
 
 /** Generic number with locale formatting */
-export function formatNumber(n: number | null | undefined, decimals = 0): string {
+export function formatNumber(n: number | string | null | undefined, decimals = 0): string {
   if (n == null) return '—';
-  return n.toLocaleString(undefined, {
+  const num = Number(n);
+  if (isNaN(num)) return '—';
+  return num.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -65,13 +75,16 @@ export function formatNumber(n: number | null | undefined, decimals = 0): string
 
 /** Format lat/lng in decimal degrees: "12.3456°N, 45.6789°E" */
 export function formatCoordinates(
-  lat: number | null | undefined,
-  lng: number | null | undefined,
+  lat: number | string | null | undefined,
+  lng: number | string | null | undefined,
 ): string {
   if (lat == null || lng == null) return '—';
-  const latDir = lat >= 0 ? 'N' : 'S';
-  const lngDir = lng >= 0 ? 'E' : 'W';
-  return `${Math.abs(lat).toFixed(4)}°${latDir}, ${Math.abs(lng).toFixed(4)}°${lngDir}`;
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (isNaN(latNum) || isNaN(lngNum)) return '—';
+  const latDir = latNum >= 0 ? 'N' : 'S';
+  const lngDir = lngNum >= 0 ? 'E' : 'W';
+  return `${Math.abs(latNum).toFixed(4)}°${latDir}, ${Math.abs(lngNum).toFixed(4)}°${lngDir}`;
 }
 
 export function formatNavStatus(status: string | null | undefined): string {
