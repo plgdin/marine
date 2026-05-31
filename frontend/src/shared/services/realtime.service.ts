@@ -21,10 +21,10 @@ class RealtimeService {
     logger.info('RealtimeService: Connecting to Supabase Realtime...');
     useRealtimeStore.getState().setConnectionStatus('reconnecting');
 
-    this.channel = supabase.channel('public:vessel_positions')
+    this.channel = supabase.channel('public:vessel_latest_positions')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'vessel_positions' },
+        { event: '*', schema: 'public', table: 'vessel_latest_positions' },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

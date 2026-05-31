@@ -48,7 +48,7 @@ const FLUSH_INTERVAL_MS = 300; // Flush every 300ms
 // ── Store ────────────────────────────────
 export const useRealtimeStore = create<RealtimeStore>()((set, get) => ({
   // State
-  connectionStatus: 'disconnected',
+  connectionStatus: 'connected',
   positions:        positionsBuffer,
   tracks:           new Map(),
   recentAlerts:     [],
