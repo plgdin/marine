@@ -3,7 +3,7 @@ import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { useMapStore } from '../stores/map.store';
 import { getVesselMetadata } from '@shared/services/aisstream.service';
 import { useEffect, useState } from 'react';
-import { gfwService, type GFWVesselInfo } from '@shared/services/gfw.service';
+import { gfwService, type GFWVesselInfo, getRegistryExtraFields } from '@shared/services/gfw.service';
 import { useFleetStore } from '../stores/fleet.store';
 import { useNavigate } from 'react-router-dom';
 import { Droplet, LayoutGrid, Menu, ChevronDown, Info, Route, Navigation, X } from 'lucide-react';
@@ -71,8 +71,9 @@ export function VesselPopup() {
   // Enrich with AIS metadata
   const metadata = getVesselMetadata(selectedVesselId);
   const shipName = metadata?.name || vessel.name || selectedVesselId;
-  const shipType = gfwData?.registryInfo?.extraFields?.gearType?.replace(/_/g, ' ') || 'Cargo Vessel';
-  const flag = gfwData?.registryInfo?.extraFields?.flag || 'MT'; // MT = Malta for mockup
+  const extraFields = getRegistryExtraFields(gfwData);
+  const shipType = extraFields?.gearType?.replace(/_/g, ' ') || 'Cargo Vessel';
+  const flag = extraFields?.flag || 'MT'; // MT = Malta for mockup
   
   // Fake ATD/ETA data for UI demonstration since AIS streams lack it
   const atd = new Date(Date.now() - 1000 * 60 * 60 * 48).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });

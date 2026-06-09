@@ -473,14 +473,15 @@ class GFWService {
    */
   private pickBestEntry(entries: GfwVesselIdentity[]): GfwVesselIdentity {
     // Prefer entries with registry info (has ship name, IMO, etc)
-    const withRegistry = entries.find(
-      (e) => e.registryInfo?.length && e.registryInfo.some((r: any) => r.shipname || r.imo),
-    );
+    const withRegistry = entries.find((e) => {
+      const records = getRegistryRecords(e);
+      return records.length && records.some((r) => r.shipname || r.imo);
+    });
     if (withRegistry) return withRegistry;
 
     // Prefer entries with self-reported info that has a ship name
-    const withName = entries.find(
-      (e) => e.selfReportedInfo?.selfReportedInfo?.some((s) => s.shipname),
+    const withName = entries.find((e) =>
+      getSelfReportedRecords(e).some((s) => s.shipname),
     );
     if (withName) return withName;
 

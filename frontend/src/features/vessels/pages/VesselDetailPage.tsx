@@ -7,7 +7,7 @@ import { ArrowLeft, CalendarClock, Compass, Gauge, Info, Radio, Ship, Waypoints 
 
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { getVesselAisStats, getVesselMetadata } from '@shared/services/aisstream.service';
-import { gfwService, type GfwEventsResponse, type GfwInsightsResponse, type GfwVesselIdentity } from '@shared/services/gfw.service';
+import { gfwService, type GfwEventsResponse, type GfwInsightsResponse, type GfwVesselIdentity, getRegistryRecords, getSelfReportedRecords, getRegistryExtraFields } from '@shared/services/gfw.service';
 import { Badge } from '@shared/components/ui/Badge';
 import { Button } from '@shared/components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/components/ui/Card';
@@ -106,53 +106,45 @@ export default function VesselDetailPage() {
   // ── Extract identity from GFW data ──────────────────────────
   const gfwName = useMemo(() => {
     if (!gfwVessel) return null;
-    // Try multiple sources for the name
     if (gfwVessel.name) return gfwVessel.name;
-    const reg = gfwVessel.registryInfo?.currentRegistryInfo?.[0]
-      ?? gfwVessel.registryInfo?.registryInfo?.[0];
-    if (reg?.shipname) return reg.shipname;
+    const records = getRegistryRecords(gfwVessel);
+    if (records[0]?.shipname) return records[0].shipname;
     const combined = gfwVessel.combinedSourcesInfo?.[0];
     if (combined?.name) return combined.name;
-    const selfReported = gfwVessel.selfReportedInfo?.selfReportedInfo?.[0];
-    if (selfReported?.shipname) return selfReported.shipname;
+    const selfReported = getSelfReportedRecords(gfwVessel);
+    if (selfReported[0]?.shipname) return selfReported[0].shipname;
     return null;
   }, [gfwVessel]);
 
   const gfwImo = useMemo(() => {
     if (!gfwVessel) return null;
-    // Try registry records first
-    const reg = gfwVessel.registryInfo?.currentRegistryInfo?.[0]
-      ?? gfwVessel.registryInfo?.registryInfo?.[0];
-    if (reg?.imo) return reg.imo;
-    // Try combined sources
+    const records = getRegistryRecords(gfwVessel);
+    if (records[0]?.imo) return records[0].imo;
     const combined = gfwVessel.combinedSourcesInfo?.[0];
     if (combined?.imo) return combined.imo;
-    // Try self-reported
-    const selfReported = gfwVessel.selfReportedInfo?.selfReportedInfo?.[0];
-    if (selfReported?.imo) return selfReported.imo;
+    const selfReported = getSelfReportedRecords(gfwVessel);
+    if (selfReported[0]?.imo) return selfReported[0].imo;
     return null;
   }, [gfwVessel]);
 
   const gfwCallSign = useMemo(() => {
     if (!gfwVessel) return null;
-    const reg = gfwVessel.registryInfo?.currentRegistryInfo?.[0]
-      ?? gfwVessel.registryInfo?.registryInfo?.[0];
-    if (reg?.callsign) return reg.callsign;
+    const records = getRegistryRecords(gfwVessel);
+    if (records[0]?.callsign) return records[0].callsign;
     const combined = gfwVessel.combinedSourcesInfo?.[0];
     if (combined?.callsign) return combined.callsign;
-    const selfReported = gfwVessel.selfReportedInfo?.selfReportedInfo?.[0];
-    if (selfReported?.callsign) return selfReported.callsign;
+    const selfReported = getSelfReportedRecords(gfwVessel);
+    if (selfReported[0]?.callsign) return selfReported[0].callsign;
     return null;
   }, [gfwVessel]);
 
   const gfwFlag = useMemo(() => {
     if (!gfwVessel) return null;
-    const reg = gfwVessel.registryInfo?.currentRegistryInfo?.[0]
-      ?? gfwVessel.registryInfo?.registryInfo?.[0];
-    if (reg?.flag) return reg.flag;
+    const records = getRegistryRecords(gfwVessel);
+    if (records[0]?.flag) return records[0].flag;
     const combined = gfwVessel.combinedSourcesInfo?.[0];
     if (combined?.flag) return combined.flag;
-    return gfwVessel.registryInfo?.extraFields?.flag ?? null;
+    return getRegistryExtraFields(gfwVessel)?.flag ?? null;
   }, [gfwVessel]);
 
   useEffect(() => {
@@ -166,20 +158,20 @@ export default function VesselDetailPage() {
       // GFW datasets commonly lag up to ~96 hours; use exclusive YYYY-MM-DD end-date.
       const endDate = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString().slice(0, 10);
       setGfwEndDate(endDate);
-      let searched = await gfwService.searchByMmsi(id, { includes: ['REGISTRY_INFO'] });
+      let searched = await gfwService.searchByMmsi(id);
       if (cancelled) return;
 
       // If MMSI search found nothing and we have a name from AIS metadata, try name search
       if (!searched?.id) {
         const cachedMeta = getVesselMetadata(id);
         if (cachedMeta?.name && cachedMeta.name.length >= 3) {
-          searched = await gfwService.searchByName(cachedMeta.name, { includes: ['REGISTRY_INFO'] });
+          searched = await gfwService.searchByName(cachedMeta.name);
           if (cancelled) return;
         }
       }
 
       const vessel = searched?.id
-        ? await gfwService.getVesselById(searched.id, { includes: ['REGISTRY_INFO', 'OWNERSHIP', 'AUTHORIZATIONS', 'IDENTITY'] })
+        ? await gfwService.getVesselById(searched.id)
         : searched;
 
       if (cancelled) return;
@@ -323,16 +315,15 @@ export default function VesselDetailPage() {
       name: meta?.name || 'Unknown Vessel',
       imo: meta?.imo,
       callSign: meta?.callSign,
-      flag: meta?.flag,
       vesselTypeName: meta?.vesselType,
     };
   }, [meta, id]);
 
-  const shipName = pos?.name || specs.name || 'Unknown Vessel';
+  const shipName = pos?.name || gfwName || specs.name || 'Unknown Vessel';
   const vesselType = specs.vesselTypeName ? formatVesselType(specs.vesselTypeName) : '—';
-  const imoNumber = specs.imo;
-  const callSign = specs.callSign;
-  const flagState = specs.flag;
+  const imoNumber = specs.imo || gfwImo;
+  const callSign = specs.callSign || gfwCallSign;
+  const flagState = gfwFlag;
 
   const lastSeen = pos?.timestamp ? formatRelative(pos.timestamp) : '—';
   const lastSeenExact = pos?.timestamp ? formatDateTime(pos.timestamp) : '—';
@@ -512,10 +503,10 @@ export default function VesselDetailPage() {
 
                 {/* GFW Registry Data — always show when available */}
                 {gfwVessel && (() => {
-                  const reg = gfwVessel.registryInfo?.currentRegistryInfo?.[0]
-                    ?? gfwVessel.registryInfo?.registryInfo?.[0];
+                  const records = getRegistryRecords(gfwVessel);
+                  const reg = records[0];
                   const combined = gfwVessel.combinedSourcesInfo?.[0];
-                  const extra = gfwVessel.registryInfo?.extraFields;
+                  const extra = getRegistryExtraFields(gfwVessel);
                   const hasData = reg || combined || extra;
                   if (!hasData) return null;
 
