@@ -4,6 +4,7 @@ import { useMapStore } from '../stores/map.store';
 import { VesselLayer } from './layers/VesselLayer';
 import { VesselPopup } from './VesselPopup';
 import { useCallback, useEffect } from 'react';
+import { useRealtimeStore } from '@shared/stores/realtime.store';
 import type { MapMouseEvent } from 'maplibre-gl';
 import MAP_STYLE from '../styles/map-style';
 import { gfwService } from '@shared/services/gfw.service';
@@ -57,11 +58,38 @@ export function MapContainer() {
     const features = (event as any).features;
     const feature = features?.[0];
     
-    if (feature && feature.layer?.id === 'vessels-unclustered') {
+    if (feature && (feature.layer?.id === 'vessels-stationary' || feature.layer?.id === 'vessels-moving')) {
       const vesselId = feature.properties?.vessel_id;
       if (vesselId) {
         document.body.style.cursor = 'pointer';
         setSelectedVessel(vesselId);
+
+        // If the vessel is missing from our store (because it wasn't in the top 2000 initial fetch),
+        // we populate the store directly from the vector tile's properties so the Popup can render.
+        const store = useRealtimeStore.getState();
+        if (!store.positions.has(vesselId)) {
+          let lng = event.lngLat.lng;
+          let lat = event.lngLat.lat;
+          if (feature.geometry && feature.geometry.type === 'Point') {
+             lng = feature.geometry.coordinates[0];
+             lat = feature.geometry.coordinates[1];
+          }
+
+          store.upsertPosition({
+             id: vesselId,
+             vesselId: vesselId,
+             orgId: 'demo',
+             location: { lat, lng },
+             heading: feature.properties?.heading ? Number(feature.properties.heading) : null,
+             course: feature.properties?.course ? Number(feature.properties.course) : null,
+             speed: feature.properties?.speed ? Number(feature.properties.speed) : null,
+             navStatus: feature.properties?.nav_status || 'underway',
+             rot: null,
+             timestamp: new Date().toISOString(),
+             source: 'ais',
+          });
+          store.flushPositions();
+        }
       }
     } else {
       document.body.style.cursor = '';
@@ -74,7 +102,7 @@ export function MapContainer() {
     const feature = features?.[0];
     
     // If we clicked the map but NOT a vessel, clear the selection
-    if (!feature || feature.layer?.id !== 'vessels-unclustered') {
+    if (!feature || (feature.layer?.id !== 'vessels-stationary' && feature.layer?.id !== 'vessels-moving')) {
       setSelectedVessel(null);
     }
   }, [setSelectedVessel]);
@@ -130,7 +158,7 @@ export function MapContainer() {
           setMapBounds([bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]);
         }}
         mapStyle={MAP_STYLE}
-        interactiveLayerIds={['vessels-unclustered']}
+        interactiveLayerIds={['vessels-stationary', 'vessels-moving']}
         onLoad={onLoad}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onMouseMove={onMouseMove as any}

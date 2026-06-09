@@ -148,6 +148,17 @@ async function startEngine() {
       const length = staticData.DimensionToBow + staticData.DimensionToStern;
       const beam = staticData.DimensionToPort + staticData.DimensionToStarboard;
       
+      let etaIso = null;
+      if (staticData.Eta && staticData.Eta.Month > 0 && staticData.Eta.Day > 0) {
+        // Eta is Month, Day, Hour, Minute.
+        const currentYear = new Date().getFullYear();
+        // Month is 1-12 in AIS, JS Date expects 0-11
+        const d = new Date(Date.UTC(currentYear, staticData.Eta.Month - 1, staticData.Eta.Day, staticData.Eta.Hour, staticData.Eta.Minute));
+        if (!isNaN(d.getTime())) {
+          etaIso = d.toISOString();
+        }
+      }
+
       staticDataBatch.set(mmsi, {
         org_id: targetOrgId,
         mmsi: mmsi,
@@ -158,6 +169,12 @@ async function startEngine() {
         length_overall: length > 0 ? length : null,
         beam: beam > 0 ? beam : null,
         draught: staticData.Draught,
+        metadata: {
+          destination: staticData.Destination ? staticData.Destination.trim() : null,
+          etaIso: etaIso,
+          callSign: staticData.CallSign?.trim(),
+          imo: staticData.ImoNumber === 0 ? null : staticData.ImoNumber.toString()
+        }
       });
       return; 
     }

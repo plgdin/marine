@@ -1,22 +1,23 @@
 import { Popup, useMap } from 'react-map-gl/maplibre';
 import { useRealtimeStore } from '@shared/stores/realtime.store';
 import { useMapStore } from '../stores/map.store';
-import { getVesselMetadata } from '@shared/services/aisstream.service';
 import { useEffect, useState } from 'react';
 import { gfwService, type GFWVesselInfo, getRegistryExtraFields } from '@shared/services/gfw.service';
 import { useFleetStore } from '../stores/fleet.store';
 import { useNavigate } from 'react-router-dom';
 import { Droplet, LayoutGrid, Menu, ChevronDown, Info, Route, Navigation, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '@/config/supabase';
 
 export function VesselPopup() {
   const navigate = useNavigate();
   const { current: map } = useMap();
   const selectedVesselId = useMapStore((s) => s.selectedVesselId);
   const setSelectedVessel = useMapStore((s) => s.setSelectedVessel);
-  const vessel = useRealtimeStore((s) => 
-    selectedVesselId ? s.positions.get(selectedVesselId) : undefined
-  );
+  const vessel = useRealtimeStore((s) => {
+    void s._positionVersion;
+    return selectedVesselId ? s.positions.get(selectedVesselId) : undefined;
+  });
   
   const [gfwData, setGfwData] = useState<GFWVesselInfo | null>(null);
   const { fleets, fetchFleets, addVesselToFleet } = useFleetStore();
@@ -27,15 +28,26 @@ export function VesselPopup() {
     fetchFleets();
   }, [fetchFleets]);
 
+  const [dbVessel, setDbVessel] = useState<{ name?: string; mmsi?: string; vessel_type?: string; metadata?: any } | null>(null);
+
   useEffect(() => {
     if (selectedVesselId) {
-      gfwService.searchByMmsi(selectedVesselId).then(data => {
+      supabase.from('vessels').select('name, mmsi, vessel_type, metadata').eq('id', selectedVesselId).single()
+        .then(({ data }) => setDbVessel(data as any));
+    } else {
+      setDbVessel(null);
+    }
+  }, [selectedVesselId]);
+
+  useEffect(() => {
+    if (dbVessel?.mmsi) {
+      gfwService.searchByMmsi(dbVessel.mmsi).then(data => {
         setGfwData(data);
       });
     } else {
       setGfwData(null);
     }
-  }, [selectedVesselId]);
+  }, [dbVessel?.mmsi]);
 
   // Calculate dynamic anchor so it never overflows
   useEffect(() => {
@@ -68,16 +80,18 @@ export function VesselPopup() {
 
   if (!selectedVesselId || !vessel) return null;
 
-  // Enrich with AIS metadata
-  const metadata = getVesselMetadata(selectedVesselId);
-  const shipName = metadata?.name || vessel.name || selectedVesselId;
+  // Enrich with AIS metadata from the database
+  const metadata = dbVessel?.metadata;
+  const shipName = metadata?.name || vessel.name || dbVessel?.name || selectedVesselId;
   const extraFields = getRegistryExtraFields(gfwData);
-  const shipType = extraFields?.gearType?.replace(/_/g, ' ') || 'Cargo Vessel';
+  const shipType = dbVessel?.vessel_type || extraFields?.gearType?.replace(/_/g, ' ') || 'Cargo Vessel';
   const flag = extraFields?.flag || 'MT'; // MT = Malta for mockup
   
-  // Fake ATD/ETA data for UI demonstration since AIS streams lack it
-  const atd = new Date(Date.now() - 1000 * 60 * 60 * 48).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-  const eta = new Date(Date.now() + 1000 * 60 * 60 * 72).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  // Use real ETA and Destination from AIS if available
+  const eta = metadata?.etaIso 
+    ? new Date(metadata.etaIso).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) 
+    : '—';
+  const destination = metadata?.destination?.trim() || 'UNKNOWN';
 
   const handleAddToFleet = async (fleetId: string) => {
     await addVesselToFleet(fleetId, selectedVesselId);
@@ -191,33 +205,35 @@ export function VesselPopup() {
         </div>
 
         {/* Identifiers */}
-        <div className="grid grid-cols-2 px-3 py-1.5 pb-1">
+        <div className="grid grid-cols-2 px-3 py-1.5 pb-1 border-b border-white/5">
           <div>
-            <span className="text-slate-500 text-[11px] font-medium">CN</span>
-            <span className="font-bold text-[15px] ml-1.5 text-white tracking-wide">{metadata?.callSign || 'TXG'}</span>
+            <span className="text-slate-500 text-[10px] font-bold tracking-wider uppercase">Call Sign</span>
+            <div className="font-bold text-[14px] text-white tracking-wide">{metadata?.callSign || '—'}</div>
           </div>
           <div className="text-right">
-            <span className="text-slate-500 text-[11px] font-medium">OM</span>
-            <span className="font-bold text-[15px] ml-1.5 text-white tracking-wide">{metadata?.imo || 'MFH'}</span>
+            <span className="text-slate-500 text-[10px] font-bold tracking-wider uppercase">IMO</span>
+            <div className="font-bold text-[14px] text-white tracking-wide">{metadata?.imo || '—'}</div>
+          </div>
+        </div>
+
+        {/* Voyage Info */}
+        <div className="px-3 py-2 space-y-2">
+          <div className="flex justify-between items-baseline">
+            <div className="flex items-baseline gap-1">
+              <span className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">DEST</span>
+              <span className="text-[15px] font-bold text-white tracking-tight truncate max-w-[140px]" title={destination}>{destination}</span>
+            </div>
+            <div className="flex flex-col text-right">
+              <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase flex items-center gap-1 justify-end">
+                Reported ETA <Info size={10} className="text-slate-500" />
+              </span>
+              <span className="text-[11px] font-medium text-slate-300">{eta}</span>
+            </div>
           </div>
         </div>
 
         {/* Timeline */}
         <div className="px-3 py-1.5 space-y-2">
-          <div className="flex justify-between text-[10px] leading-tight">
-            <div>
-              <span className="font-semibold text-slate-400">ATD: </span>
-              <span className="text-slate-200">{atd}</span>
-            </div>
-            <div className="text-right flex items-start gap-1">
-              <div>
-                <div className="font-semibold text-slate-400">Reported ETA:</div>
-                <div className="text-slate-200">{eta}</div>
-              </div>
-              <Info size={10} className="text-slate-500 mt-0.5" strokeWidth={3} />
-            </div>
-          </div>
-          
           <div className="relative w-full h-6 flex items-center">
             <div className="w-full h-[2px] bg-slate-700/50 rounded-full relative">
               <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 w-[60%] absolute top-0 left-0 shadow-[0_0_5px_rgba(6,182,212,0.5)]"></div>
